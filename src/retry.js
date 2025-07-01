@@ -1,5 +1,5 @@
-import timeout from "./timeout"
-import wait from "./wait"
+import timeout from "./timeout.js"
+import wait from "./wait.js"
 
 export default async function retry(arg1, arg2) {
   let args, callback

@@ -1,4 +1,4 @@
-import wait from "./wait"
+import wait from "./wait.js"
 
 export default async function waitFor(callback, opts) {
   const waitTimeout = opts?.timeout || 5000
