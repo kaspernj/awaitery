@@ -7,7 +7,7 @@
 ```js
 import retry from "awaitery/src/retry.js"
 
-await retry({wait: 1000, timeout: 4000}, async () => {
+await retry({tries: 3, wait: 1000, timeout: 4000}, async () => {
   const submitButton = await systemTest.findByTestID("signInButton")
 
   await systemTest.click(submitButton)
