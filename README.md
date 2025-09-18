@@ -24,6 +24,7 @@ await timeout({timeout: 4000}, async () => {
 
   await systemTest.click(submitButton)
 })
+```
 
 ## wait
 
