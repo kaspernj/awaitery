@@ -15,6 +15,8 @@ await retry({tries: 3, wait: 1000, timeout: 4000}, async () => {
 ```
 
 ## timeout
+
+```js
 import timeout from "awaitery/src/timeout.js"
 
 await timeout({timeout: 4000}, async () => {
