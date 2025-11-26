@@ -3,6 +3,8 @@
   "version": "1.0.1",
   "description": "Wait for things to happen or just wait in general.",
   "keywords": [
+    "retry",
+    "timeout",
     "wait",
     "wait-for"
   ],

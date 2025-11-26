@@ -1,5 +1,11 @@
 class TimeoutError extends Error {}
 
+/**
+ * Runs a callback with a timeout.
+ *
+ * @param {Object} args - The arguments.
+ * @param {Number} args.timeout - The timeout in milliseconds.
+ */
 export default async function timeout(args, callback) {
   const {timeout: timeoutNumber, ...restArgs} = args
   const restArgsKeys = Object.keys(restArgs)

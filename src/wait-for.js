@@ -1,5 +1,13 @@
 import wait from "./wait.js"
 
+/**
+ * Waits for a callback to run without throwing an error and retries until the timeout is reached.
+ *
+ * @param {Function} callback - The callback.
+ * @param {Object} opts - Options.
+ * @param {Number} opts.timeout - The timeout in milliseconds (default: 5000)
+ * @param {Number} opts.wait - The wait time in milliseconds (default: 50)
+ */
 export default async function waitFor(callback, opts) {
   const waitTimeout = opts?.timeout || 5000
   const waitTime = opts?.wait || 50
