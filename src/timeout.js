@@ -23,7 +23,7 @@ export default async function timeout(args, callback) {
     }, timeoutNumber)
   })
 
-  const callbackPromise = new Promise(async (resolve, reject) => {
+  const callbackPromise = new Promise(async (resolve, reject) => { // eslint-disable-line no-async-promise-executor
     try {
       result = await callback()
       resolve()

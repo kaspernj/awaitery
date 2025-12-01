@@ -3,16 +3,17 @@ import wait from "./wait.js"
 
 /**
  * Retries a callback until it succeeds or the timeout is reached.
- * @param {function() : void} callback - The callback to retry.
+ * @param {function() : void} arg1 - The callback to retry.
+ * @param {undefined} arg2
  * @returns {void}
  */
 /**
  * Retries a callback until it succeeds or the timeout is reached.
- * @param {object} args - The arguments.
- * @param {number} args.timeout - The timeout in milliseconds
- * @param {number} args.tries - The number of tries (default: 3)
- * @param {number} args.wait - The wait time in milliseconds between tries (default: 50)
- * @param {function() : void} callback - The callback to retry.
+ * @param {object} arg1 - The arguments.
+ * @param {number} arg1.timeout - The timeout in milliseconds
+ * @param {number} arg1.tries - The number of tries (default: 3)
+ * @param {number} arg1.wait - The wait time in milliseconds between tries (default: 50)
+ * @param {function() : void} arg2 - The callback to retry.
  * @returns {void}
  */
 export default async function retry(arg1, arg2) {
