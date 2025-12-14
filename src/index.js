@@ -1,3 +1,5 @@
+// @ts-check
+
 import retry from "./retry.js"
 import timeout from "./timeout.js"
 import wait from "./wait.js"

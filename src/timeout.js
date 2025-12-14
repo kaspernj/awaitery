@@ -1,10 +1,13 @@
+// @ts-check
+
 class TimeoutError extends Error {}
 
 /**
  * Runs a callback with a timeout.
- *
- * @param {Object} args - The arguments.
- * @param {Number} args.timeout - The timeout in milliseconds.
+ * @param {object} args - The arguments.
+ * @param {number} args.timeout - The timeout in milliseconds.
+ * @param {function() : void} callback - The callback to run.
+ * @returns {Promise<void>}
  */
 export default async function timeout(args, callback) {
   const {timeout: timeoutNumber, ...restArgs} = args
@@ -18,14 +21,14 @@ export default async function timeout(args, callback) {
   const timeoutPromise = new Promise((resolve) => {
     setTimeout(() => { // eslint-disable-line no-undef
       timeoutReached = true
-      resolve()
+      resolve(undefined)
     }, timeoutNumber)
   })
 
   const callbackPromise = new Promise(async (resolve, reject) => {
     try {
       result = await callback()
-      resolve()
+      resolve(undefined)
     } catch (error) {
       reject(error)
     }
