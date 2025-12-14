@@ -19,13 +19,13 @@ export default async function timeout(args, callback) {
   let timeoutReached = false
 
   const timeoutPromise = new Promise((resolve) => {
-    setTimeout(() => { // eslint-disable-line no-undef
+    setTimeout(() => {
       timeoutReached = true
       resolve(undefined)
     }, timeoutNumber)
   })
 
-  const callbackPromise = new Promise(async (resolve, reject) => {
+  const callbackPromise = new Promise(async (resolve, reject) => { // eslint-disable-line no-async-promise-executor
     try {
       result = await callback()
       resolve(undefined)
