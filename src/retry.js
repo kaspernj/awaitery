@@ -6,7 +6,7 @@ import wait from "./wait.js"
 /**
  * Retries a callback until it succeeds or the timeout is reached.
  * @param {function() : void} arg1 - The callback to retry.
- * @param {undefined} arg2
+ * @param {undefined} [arg2]
  * @returns {void}
  */
 /**
