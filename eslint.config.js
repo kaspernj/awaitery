@@ -5,6 +5,10 @@ import {defineConfig} from "eslint/config"
 
 export default defineConfig([
   {
+    name: "global ignores",
+    ignores: ["build/**"],
+  },
+  {
     files: ["**/*.{js,mjs,cjs}"],
     plugins: {js},
     extends: ["js/recommended"],
@@ -16,6 +20,9 @@ export default defineConfig([
     }
   },
   jsdoc({
-    config: "flat/recommended"
+    config: "flat/recommended",
+    rules: {
+      "jsdoc/require-param-description": "off"
+    }
   })
 ])

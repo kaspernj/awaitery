@@ -4,30 +4,52 @@ import timeout from "./timeout.js"
 import wait from "./wait.js"
 
 /**
- * Retries a callback until it succeeds or the timeout is reached.
- * @param {function() : void} arg1 - The callback to retry.
+ * @typedef {object} RetryArgs
+ * @property {number} [timeout] The timeout in milliseconds
+ * @property {number} [tries] The number of tries (default: 3)
+ * @property {number} [wait] The wait time in milliseconds between tries (default: 50)
+ */
+
+/**
+ * @typedef {function() : void} RetryCallback
+ */
+
+/**
+ * Retries a callback until it succeeds or the timeout is reached without arguments.
+ * @overload
+ * @param {RetryCallback} arg1 - The callback to retry.
  * @param {undefined} [arg2]
  * @returns {void}
  */
 /**
- * Retries a callback until it succeeds or the timeout is reached.
- * @param {object} arg1 - The arguments.
- * @param {number} arg1.timeout - The timeout in milliseconds
- * @param {number} arg1.tries - The number of tries (default: 3)
- * @param {number} arg1.wait - The wait time in milliseconds between tries (default: 50)
- * @param {function() : void} arg2 - The callback to retry.
+ * Retries a callback until it succeeds or the timeout is reached with arguments.
+ * @overload
+ * @param {RetryArgs} arg1 - The arguments.
+ * @param {RetryCallback} arg2 - The callback to retry.
+ * @returns {Promise<void>}
+ */
+/**
+ * @param {RetryArgs | RetryCallback} arg1
+ * @param {undefined | RetryCallback} arg2
  * @returns {Promise<void>}
  */
 export default async function retry(arg1, arg2) {
-  let args, callback
+  /** @type {RetryArgs | undefined} */
+  let args
+
+  /** @type {RetryCallback | undefined} */
+  let callback
 
   if (typeof arg1 == "function" && arg2 === undefined) {
     args = {}
     callback = arg1
-  } else {
+  } else if (typeof arg1 == "object" && typeof arg2 == "function") {
     args = arg1
     callback = arg2
   }
+
+  if (callback == undefined) throw new Error("Somehow callback is undefined")
+  if (typeof args !== "object") throw new Error("Somehow args isn't an object")
 
   const {timeout: timeoutNumber = null, tries = 3, wait: waitNumber = undefined, ...restArgs} = args
   const restArgsKeys = Object.keys(restArgs)
