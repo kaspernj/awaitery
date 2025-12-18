@@ -1,6 +1,6 @@
 {
   "name": "awaitery",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Wait for things to happen or just wait in general.",
   "files": ["build/**"],
   "keywords": [
