@@ -29,7 +29,8 @@
     "prepublishOnly": "npm run build",
     "test": "node jasmine.mjs",
     "typecheck": "tsc --noEmit",
-    "watch": "tsc -w"
+    "watch": "tsc -w",
+    "release:patch": "node scripts/release-patch.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
