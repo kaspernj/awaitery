@@ -1,5 +1,6 @@
 import js from "@eslint/js"
 import {jsdoc} from "eslint-plugin-jsdoc"
+import jasminePlugin from "eslint-plugin-jasmine"
 import globals from "globals"
 import {defineConfig} from "eslint/config"
 
@@ -16,6 +17,19 @@ export default defineConfig([
       globals: {
         ...globals.browser,
         ...globals.node
+      }
+    }
+  },
+  {
+    ...jasminePlugin.configs.recommended,
+    files: ["spec/**/*.{js,mjs,cjs}"],
+    plugins: {
+      jasmine: jasminePlugin
+    },
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.jasmine
       }
     }
   },
