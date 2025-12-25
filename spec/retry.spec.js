@@ -1,0 +1,34 @@
+import retry from "../src/retry.js"
+import wait from "../src/wait.js"
+
+describe("retry", () => {
+  it("retries until the callback succeeds", async () => {
+    let attempts = 0
+
+    await expectAsync(retry({tries: 3, wait: 10}, async () => {
+      attempts += 1
+      if (attempts < 2) throw new Error("not yet")
+      return "ok"
+    })).toBeResolvedTo("ok")
+
+    expect(attempts).toBe(2)
+  })
+
+  it("throws the last error when tries are exhausted", async () => {
+    let attempts = 0
+
+    await expectAsync(retry({tries: 2, wait: 5}, async () => {
+      attempts += 1
+      throw new Error("nope")
+    })).toBeRejectedWithError("nope")
+
+    expect(attempts).toBe(2)
+  })
+
+  it("honors timeout for each attempt", async () => {
+    await expectAsync(retry({tries: 1, timeout: 30}, async () => {
+      await wait(50)
+      return "slow"
+    })).toBeRejectedWithError(/Timeout while trying/)
+  })
+})
