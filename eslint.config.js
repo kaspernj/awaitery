@@ -34,9 +34,6 @@ export default defineConfig([
     }
   },
   jsdoc({
-    config: "flat/recommended",
-    rules: {
-      "jsdoc/require-param-description": "off"
-    }
+    config: "flat/recommended"
   })
 ])
