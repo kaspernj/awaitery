@@ -11,33 +11,37 @@ import wait from "./wait.js"
  */
 
 /**
- * @typedef {function() : void} RetryCallback
+ * @template T
+ * @typedef {() => (T | Promise<T>)} RetryCallback
  */
 
 /**
  * Retries a callback until it succeeds or the timeout is reached without arguments.
+ * @template T
  * @overload
- * @param {RetryCallback} arg1 - The callback to retry.
+ * @param {RetryCallback<T>} arg1 - The callback to retry.
  * @param {undefined} [arg2]
- * @returns {void}
+ * @returns {Promise<T>} Resolves with the callback result.
  */
 /**
  * Retries a callback until it succeeds or the timeout is reached with arguments.
+ * @template T
  * @overload
  * @param {RetryArgs} arg1 - The arguments.
- * @param {RetryCallback} arg2 - The callback to retry.
- * @returns {Promise<void>}
+ * @param {RetryCallback<T>} arg2 - The callback to retry.
+ * @returns {Promise<T>} Resolves with the callback result.
  */
 /**
- * @param {RetryArgs | RetryCallback} arg1
- * @param {undefined | RetryCallback} arg2
- * @returns {Promise<void>}
+ * @template T
+ * @param {RetryArgs | RetryCallback<T>} arg1 The arguments or the callback.
+ * @param {RetryCallback<T>} [arg2] The callback when arguments are provided.
+ * @returns {Promise<T>} Resolves with the callback result.
  */
 export default async function retry(arg1, arg2) {
   /** @type {RetryArgs | undefined} */
   let args
 
-  /** @type {RetryCallback | undefined} */
+  /** @type {RetryCallback<T> | undefined} */
   let callback
 
   if (typeof arg1 == "function" && arg2 === undefined) {

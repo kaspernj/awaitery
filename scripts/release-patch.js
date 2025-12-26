@@ -2,8 +2,8 @@ import {execSync} from "node:child_process"
 
 /**
  * Run a shell command and inherit stdio.
- * @param {string} command
- * @param {import("node:child_process").ExecSyncOptions} [options]
+ * @param {string} command The shell command to execute.
+ * @param {import("node:child_process").ExecSyncOptions} [options] Exec options for the command.
  * @returns {void}
  */
 function run(command, options = {}) {
