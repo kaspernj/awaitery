@@ -31,4 +31,20 @@ describe("retry", () => {
       return "slow"
     })).toBeRejectedWithError(/Timeout while trying/)
   })
+
+  it("waits between retries", async () => {
+    const waitTime = 30
+    /** @type {number[]} */
+    const attemptTimes = []
+
+    await expectAsync(retry({tries: 3, wait: waitTime}, async () => {
+      attemptTimes.push(Date.now())
+      if (attemptTimes.length < 3) throw new Error("nope")
+      return "ok"
+    })).toBeResolvedTo("ok")
+
+    expect(attemptTimes).toHaveSize(3)
+    expect(attemptTimes[1] - attemptTimes[0]).toBeGreaterThanOrEqual(waitTime)
+    expect(attemptTimes[2] - attemptTimes[1]).toBeGreaterThanOrEqual(waitTime)
+  })
 })
