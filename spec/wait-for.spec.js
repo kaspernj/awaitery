@@ -18,4 +18,10 @@ describe("waitFor", () => {
       throw new Error("still failing")
     })).toBeRejectedWithError("still failing")
   })
+
+  it("throws on unknown options", async () => {
+    await expectAsync(waitFor({nope: true}, async () => {
+      return "ignored"
+    })).toBeRejectedWithError(/Unknown arguments given to waitFor: nope/)
+  })
 })

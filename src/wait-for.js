@@ -32,8 +32,10 @@ export default async function waitFor(opts, callback) {
     opts = undefined
   }
 
-  const waitTimeout = opts?.timeout || 5000
-  const waitTime = opts?.wait || 50
+  const {timeout: waitTimeout = 5000, wait: waitTime = 50, ...restOpts} = opts || {}
+  const restOptsKeys = Object.keys(restOpts)
+
+  if (restOptsKeys.length > 0) throw new Error(`Unknown arguments given to waitFor: ${restOptsKeys.join(", ")}`)
   const startTime = new Date()
   const endTime = startTime.getTime() + waitTimeout
   let currentTime = new Date().getTime()
