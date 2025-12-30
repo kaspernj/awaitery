@@ -19,6 +19,19 @@ describe("waitFor", () => {
     })).toBeRejectedWithError("still failing")
   })
 
+  it("supports the legacy signature with a deprecation warning", async () => {
+    let attempts = 0
+    const warnSpy = spyOn(console, "warn").and.stub()
+
+    await expectAsync(waitFor(() => {
+      attempts += 1
+      if (attempts < 2) throw new Error("nope")
+      return "ok"
+    }, {timeout: 40, wait: 10})).toBeResolvedTo("ok")
+
+    expect(warnSpy).toHaveBeenCalledWith("waitFor(callback, opts) is deprecated; use waitFor(opts, callback) instead.")
+  })
+
   it("throws on unknown options", async () => {
     await expectAsync(waitFor({nope: true}, async () => {
       return "ignored"
