@@ -9,6 +9,13 @@ describe("timeout", () => {
     })).toBeResolvedTo("done")
   })
 
+  it("uses the default timeout when no options are provided", async () => {
+    await expectAsync(timeout(async () => {
+      await wait(10)
+      return "done"
+    })).toBeResolvedTo("done")
+  })
+
   it("throws a TimeoutError when the timeout is exceeded", async () => {
     await expectAsync(timeout({timeout: 30}, async () => {
       await wait(60)
