@@ -55,6 +55,7 @@ await wait(1000)
 ## waitFor
 
 Keep retrying a callback while it throws (or rejects) until it eventually succeeds or a timeout is reached; uses a small delay between attempts and rethrows the last error on timeout.
+Options must be passed as the first argument when provided.
 
 ```js
 import waitFor from "awaitery/src/wait-for.js"
