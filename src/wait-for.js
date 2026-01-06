@@ -2,8 +2,6 @@
 
 import wait from "./wait.js"
 
-let hasWarnedLegacySignature = false
-
 /**
  * Waits for a callback to run without throwing an error and retries until the timeout is reached.
  * @template T
@@ -15,7 +13,7 @@ let hasWarnedLegacySignature = false
  * Waits for a callback to run without throwing an error and retries until the timeout is reached.
  * @template T
  * @overload
- * @param {object} [opts] Options.
+ * @param {object} opts Options.
  * @param {number} [opts.timeout] The timeout in milliseconds (default: 5000)
  * @param {number} [opts.wait] The wait time in milliseconds (default: 50)
  * @param {() => (T | Promise<T>)} callback The callback.
@@ -37,15 +35,7 @@ export default async function waitFor(opts, callback) {
 
   if (typeof opts === "function") {
     resolvedCallback = opts
-    if (callback && typeof callback === "object") {
-      options = callback
-      if (!hasWarnedLegacySignature) {
-        console.warn("waitFor(callback, opts) is deprecated; use waitFor(opts, callback) instead.")
-        hasWarnedLegacySignature = true
-      }
-    } else {
-      options = undefined
-    }
+    options = undefined
   }
 
   if (resolvedCallback == undefined) throw new Error("Somehow callback is undefined")
@@ -54,20 +44,16 @@ export default async function waitFor(opts, callback) {
   const restOptsKeys = Object.keys(restOpts)
 
   if (restOptsKeys.length > 0) throw new Error(`Unknown arguments given to waitFor: ${restOptsKeys.join(", ")}`)
-  const startTime = new Date()
-  const endTime = startTime.getTime() + waitTimeout
-  let currentTime = new Date().getTime()
+  const startTime = Date.now()
+  const endTime = startTime + waitTimeout
   let lastError
 
-  while (currentTime < endTime) {
-    currentTime = new Date().getTime()
-
+  while (Date.now() < endTime) {
     try {
       return await resolvedCallback()
     } catch (error) {
       lastError = error
     }
-
     await wait(waitTime)
   }
 
