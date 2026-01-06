@@ -15,7 +15,7 @@ let hasWarnedLegacySignature = false
  * Waits for a callback to run without throwing an error and retries until the timeout is reached.
  * @template T
  * @overload
- * @param {object} [opts] Options.
+ * @param {object} opts Options.
  * @param {number} [opts.timeout] The timeout in milliseconds (default: 5000)
  * @param {number} [opts.wait] The wait time in milliseconds (default: 50)
  * @param {() => (T | Promise<T>)} callback The callback.
