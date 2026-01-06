@@ -2,8 +2,6 @@
 
 import wait from "./wait.js"
 
-let hasWarnedLegacySignature = false
-
 /**
  * Waits for a callback to run without throwing an error and retries until the timeout is reached.
  * @template T
@@ -37,15 +35,7 @@ export default async function waitFor(opts, callback) {
 
   if (typeof opts === "function") {
     resolvedCallback = opts
-    if (callback && typeof callback === "object") {
-      options = callback
-      if (!hasWarnedLegacySignature) {
-        console.warn("waitFor(callback, opts) is deprecated; use waitFor(opts, callback) instead.")
-        hasWarnedLegacySignature = true
-      }
-    } else {
-      options = undefined
-    }
+    options = undefined
   }
 
   if (resolvedCallback == undefined) throw new Error("Somehow callback is undefined")
