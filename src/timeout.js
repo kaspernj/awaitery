@@ -48,30 +48,16 @@ export default async function timeout(arg1, arg2) {
 
   if (restArgsKeys.length > 0) throw new Error(`Unknown arguments given to timeout: ${restArgsKeys.join(", ")}`)
 
-  let result
-  let timeoutReached = false
-
-  const timeoutPromise = new Promise((resolve) => {
-    setTimeout(() => {
-      timeoutReached = true
-      resolve(undefined)
+  let timeoutId
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new TimeoutError("Timeout while trying"))
     }, timeoutNumber)
   })
 
-  const callbackPromise = new Promise(async (resolve, reject) => { // eslint-disable-line no-async-promise-executor
-    try {
-      result = await callback()
-      resolve(undefined)
-    } catch (error) {
-      reject(error)
-    }
-  })
-
-  await Promise.race([timeoutPromise, callbackPromise])
-
-  if (timeoutReached) {
-    throw new TimeoutError("Timeout while trying")
+  try {
+    return await Promise.race([Promise.resolve().then(callback), timeoutPromise])
+  } finally {
+    clearTimeout(timeoutId)
   }
-
-  return result
 }

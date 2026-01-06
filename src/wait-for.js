@@ -54,20 +54,16 @@ export default async function waitFor(opts, callback) {
   const restOptsKeys = Object.keys(restOpts)
 
   if (restOptsKeys.length > 0) throw new Error(`Unknown arguments given to waitFor: ${restOptsKeys.join(", ")}`)
-  const startTime = new Date()
-  const endTime = startTime.getTime() + waitTimeout
-  let currentTime = new Date().getTime()
+  const startTime = Date.now()
+  const endTime = startTime + waitTimeout
   let lastError
 
-  while (currentTime < endTime) {
-    currentTime = new Date().getTime()
-
+  while (Date.now() < endTime) {
     try {
       return await resolvedCallback()
     } catch (error) {
       lastError = error
     }
-
     await wait(waitTime)
   }
 

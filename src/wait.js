@@ -7,8 +7,6 @@
  */
 export default async function wait(time) {
   return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(undefined)
-    }, time)
+    setTimeout(resolve, time)
   })
 }
