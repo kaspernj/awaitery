@@ -22,6 +22,12 @@ describe("timeout", () => {
     })).toBeRejectedWithError(/Timeout while trying/)
   })
 
+  it("uses a custom error message when provided", async () => {
+    await expectAsync(timeout({timeout: 30, errorMessage: "too slow"}, async () => {
+      await wait(60)
+    })).toBeRejectedWithError("too slow")
+  })
+
   it("propagates callback errors immediately", async () => {
     await expectAsync(timeout({timeout: 300}, async () => {
       throw new Error("boom")

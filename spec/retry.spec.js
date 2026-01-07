@@ -32,6 +32,13 @@ describe("retry", () => {
     })).toBeRejectedWithError(/Timeout while trying/)
   })
 
+  it("passes custom timeout error messages to timeout", async () => {
+    await expectAsync(retry({tries: 1, timeout: 30, timeoutErrorMessage: "custom timeout"}, async () => {
+      await wait(50)
+      return "slow"
+    })).toBeRejectedWithError("custom timeout")
+  })
+
   it("waits between retries", async () => {
     const waitTime = 30
     /** @type {number[]} */
