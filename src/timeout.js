@@ -15,6 +15,7 @@ class TimeoutError extends Error {}
  * @overload
  * @param {object} args - The arguments.
  * @param {number} args.timeout - The timeout in milliseconds (default: 5000).
+ * @param {string} [args.errorMessage] - The error message when timing out.
  * @param {() => (T | Promise<T>)} callback - The callback to run.
  * @returns {Promise<T>} Resolves with the callback result.
  */
@@ -43,7 +44,7 @@ export default async function timeout(arg1, arg2) {
   if (callback == undefined) throw new Error("Somehow callback is undefined")
   if (args == null || typeof args !== "object") throw new Error("Somehow args isn't an object")
 
-  const {timeout: timeoutNumber, ...restArgs} = args
+  const {timeout: timeoutNumber, errorMessage = "Timeout while trying", ...restArgs} = args
   const restArgsKeys = Object.keys(restArgs)
 
   if (restArgsKeys.length > 0) throw new Error(`Unknown arguments given to timeout: ${restArgsKeys.join(", ")}`)
@@ -51,7 +52,7 @@ export default async function timeout(arg1, arg2) {
   let timeoutId
   const timeoutPromise = new Promise((_, reject) => {
     timeoutId = setTimeout(() => {
-      reject(new TimeoutError("Timeout while trying"))
+      reject(new TimeoutError(errorMessage))
     }, timeoutNumber)
   })
 
