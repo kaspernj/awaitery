@@ -1,6 +1,6 @@
 // @ts-check
 
-class TimeoutError extends Error {}
+export class TimeoutError extends Error {}
 
 /**
  * @typedef {object} TimeoutArgs

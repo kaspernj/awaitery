@@ -42,6 +42,20 @@ await timeout(async () => {
 })
 ```
 
+`TimeoutError` is exported from the timeout module so callers can distinguish a
+deadline from errors thrown by the callback:
+
+```js
+import timeout, {TimeoutError} from "awaitery/build/timeout.js"
+
+try {
+  await timeout({timeout: 4000}, runOperation)
+} catch (error) {
+  if (error instanceof TimeoutError) handleTimeout(error)
+  else throw error
+}
+```
+
 ## wait
 
 Sleep for the given milliseconds.

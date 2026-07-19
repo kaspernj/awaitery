@@ -1,4 +1,4 @@
-import timeout from "../src/timeout.js"
+import timeout, {TimeoutError} from "../src/timeout.js"
 import wait from "../src/wait.js"
 
 describe("timeout", () => {
@@ -20,6 +20,14 @@ describe("timeout", () => {
     await expectAsync(timeout({timeout: 30}, async () => {
       await wait(60)
     })).toBeRejectedWithError(/Timeout while trying/)
+  })
+
+  it("exports TimeoutError so callers can distinguish timeout failures", async () => {
+    const error = await timeout({timeout: 30}, async () => {
+      await wait(60)
+    }).catch((caughtError) => caughtError)
+
+    expect(error.constructor).toBe(TimeoutError)
   })
 
   it("uses a custom error message when provided", async () => {
