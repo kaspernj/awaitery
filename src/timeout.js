@@ -64,7 +64,7 @@ export class TimeoutControl {
  * Runs a callback with a timeout.
  * @template T
  * @overload
- * @param {(control: TimeoutControl) => (T | Promise<T>)} callback - The callback to run.
+ * @param {(args: {control: TimeoutControl}) => (T | Promise<T>)} callback - The callback to run.
  * @returns {Promise<T>} Resolves with the callback result.
  */
 /**
@@ -72,21 +72,21 @@ export class TimeoutControl {
  * @template T
  * @overload
  * @param {TimeoutArgs} args - The arguments.
- * @param {(control: TimeoutControl) => (T | Promise<T>)} callback - The callback to run.
+ * @param {(args: {control: TimeoutControl}) => (T | Promise<T>)} callback - The callback to run.
  * @returns {Promise<T>} Resolves with the callback result.
  */
 /**
  * Runs a callback with a timeout.
  * @template T
- * @param {TimeoutArgs | ((control: TimeoutControl) => (T | Promise<T>))} arg1 - The arguments or the callback.
- * @param {(control: TimeoutControl) => (T | Promise<T>)} [arg2] - The callback when arguments are provided.
+ * @param {TimeoutArgs | ((args: {control: TimeoutControl}) => (T | Promise<T>))} arg1 - The arguments or the callback.
+ * @param {(args: {control: TimeoutControl}) => (T | Promise<T>)} [arg2] - The callback when arguments are provided.
  * @returns {Promise<T>} Resolves with the callback result.
  */
 export default async function timeout(arg1, arg2) {
   /** @type {TimeoutArgs | undefined} */
   let args
 
-  /** @type {((control: TimeoutControl) => (T | Promise<T>)) | undefined} */
+  /** @type {((args: {control: TimeoutControl}) => (T | Promise<T>)) | undefined} */
   let callback
 
   if (typeof arg1 == "function" && arg2 === undefined) {
@@ -119,7 +119,7 @@ export default async function timeout(arg1, arg2) {
   })
 
   try {
-    return await Promise.race([Promise.resolve().then(() => callback(control)), timeoutPromise])
+    return await Promise.race([Promise.resolve().then(() => callback({control})), timeoutPromise])
   } finally {
     clearTimeout(timeoutId)
   }

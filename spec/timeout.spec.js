@@ -49,7 +49,7 @@ describe("timeout", () => {
   it("passes a TimeoutControl instance to the callback", async () => {
     let received
 
-    await timeout({timeout: 300}, (control) => {
+    await timeout({timeout: 300}, ({control}) => {
       received = control
 
       return "done"
@@ -59,7 +59,7 @@ describe("timeout", () => {
   })
 
   it("check() throws a TimeoutError once the timeout has fired", async () => {
-    const error = await timeout({timeout: 30}, async (control) => {
+    const error = await timeout({timeout: 30}, async ({control}) => {
       await wait(60)
       control.check()
 
@@ -70,7 +70,7 @@ describe("timeout", () => {
   })
 
   it("check() throws even when the event loop hasn't processed the timer yet", async () => {
-    await expectAsync(timeout({timeout: 5}, async (control) => {
+    await expectAsync(timeout({timeout: 5}, async ({control}) => {
       // Busy-wait past the deadline without yielding
       const deadline = Date.now() + 10
       while (Date.now() < deadline) {
@@ -83,7 +83,7 @@ describe("timeout", () => {
   })
 
   it("check() does not throw when called before the timeout fires", async () => {
-    await expectAsync(timeout({timeout: 300}, async (control) => {
+    await expectAsync(timeout({timeout: 300}, async ({control}) => {
       await wait(10)
       control.check()
 
@@ -94,7 +94,7 @@ describe("timeout", () => {
   it("aborts the signal when the timeout fires", async () => {
     let control
 
-    await timeout({timeout: 30}, async (givenControl) => {
+    await timeout({timeout: 30}, async ({control: givenControl}) => {
       control = givenControl
       await wait(60)
     }).catch(() => {})
@@ -105,22 +105,25 @@ describe("timeout", () => {
   it("timedOut returns true after the timeout fires", async () => {
     let control
 
-    await timeout({timeout: 30}, async (givenControl) => {
+    await timeout({timeout: 30}, async ({control: givenControl}) => {
       control = givenControl
       await wait(60)
     }).catch(() => {})
+
+    // The race rejects right at the deadline, so wait past it before reading timedOut.
+    await wait(10)
 
     expect(control.timedOut).toBe(true)
   })
 
   it("timedOut returns false before the timeout fires", async () => {
-    await timeout({timeout: 300}, (control) => {
+    await timeout({timeout: 300}, ({control}) => {
       expect(control.timedOut).toBe(false)
     })
   })
 
   it("remaining() returns a positive number before the timeout fires", async () => {
-    await timeout({timeout: 300}, (control) => {
+    await timeout({timeout: 300}, ({control}) => {
       expect(control.remaining()).toBeGreaterThan(0)
     })
   })
@@ -128,7 +131,7 @@ describe("timeout", () => {
   it("remaining() returns 0 after the timeout fires", async () => {
     let control
 
-    await timeout({timeout: 30}, async (givenControl) => {
+    await timeout({timeout: 30}, async ({control: givenControl}) => {
       control = givenControl
       await wait(60)
     }).catch(() => {})
@@ -142,7 +145,7 @@ describe("timeout", () => {
   it("bails out of a loop that checks check() on every iteration when the timeout fires", async () => {
     let iterations = 0
 
-    const error = await timeout({timeout: 30}, async (control) => {
+    const error = await timeout({timeout: 30}, async ({control}) => {
       for (let i = 0; i < 100; i++) {
         control.check()
         iterations++
