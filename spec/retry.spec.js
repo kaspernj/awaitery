@@ -1,4 +1,5 @@
 import retry from "../src/retry.js"
+import {TimeoutControl} from "../src/timeout.js"
 import wait from "../src/wait.js"
 
 describe("retry", () => {
@@ -53,5 +54,49 @@ describe("retry", () => {
     expect(attemptTimes).toHaveSize(3)
     expect(attemptTimes[1] - attemptTimes[0]).toBeGreaterThanOrEqual(waitTime)
     expect(attemptTimes[2] - attemptTimes[1]).toBeGreaterThanOrEqual(waitTime)
+  })
+
+  it("passes a TimeoutControl to the callback when a timeout is set", async () => {
+    let received
+
+    await retry({tries: 1, timeout: 100}, (control) => {
+      received = control
+      return "ok"
+    })
+
+    expect(received).toBeInstanceOf(TimeoutControl)
+  })
+
+  it("lets the callback bail via control.check() once the timeout is exceeded", async () => {
+    let checked = false
+
+    await expectAsync(retry({tries: 1, timeout: 20}, (control) => {
+      const deadline = Date.now() + 40
+
+      // Keep the event loop busy past the timeout so control.check() is the thing that throws.
+      while (Date.now() < deadline) { /* busy wait */ }
+
+      checked = true
+      control.check()
+
+      return "unreached"
+    })).toBeRejectedWithError(/Timeout while trying/)
+
+    expect(checked).toBe(true)
+  })
+
+  it("reports control.timedOut as true after the deadline passes", async () => {
+    let captured
+
+    await retry({tries: 1, timeout: 40}, (control) => {
+      captured = control
+      return "ok"
+    })
+
+    expect(captured.timedOut).toBe(false)
+
+    await wait(60)
+
+    expect(captured.timedOut).toBe(true)
   })
 })

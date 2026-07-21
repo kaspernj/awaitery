@@ -1,5 +1,6 @@
 // @ts-check
 
+import {TimeoutControl, TimeoutError} from "./timeout.js"
 import wait from "./wait.js"
 
 /**
@@ -12,7 +13,7 @@ import wait from "./wait.js"
  * Waits for a callback to run without throwing an error and retries until the timeout is reached.
  * @template T
  * @overload
- * @param {() => (T | Promise<T>)} callback The callback.
+ * @param {(control: TimeoutControl) => (T | Promise<T>)} callback The callback.
  * @returns {Promise<T>} Resolves with the callback result.
  */
 /**
@@ -20,21 +21,21 @@ import wait from "./wait.js"
  * @template T
  * @overload
  * @param {WaitForOptions} opts Options.
- * @param {() => (T | Promise<T>)} callback The callback.
+ * @param {(control: TimeoutControl) => (T | Promise<T>)} callback The callback.
  * @returns {Promise<T>} Resolves with the callback result.
  */
 /**
  * Waits for a callback to run without throwing an error and retries until the timeout is reached.
  * @template T
- * @param {WaitForOptions | (() => (T | Promise<T>))} opts Options or the callback when no options are provided.
- * @param {() => (T | Promise<T>)} [callback] The callback.
+ * @param {WaitForOptions | ((control: TimeoutControl) => (T | Promise<T>))} opts Options or the callback when no options are provided.
+ * @param {(control: TimeoutControl) => (T | Promise<T>)} [callback] The callback.
  * @returns {Promise<T>} Resolves with the callback result.
  */
 export default async function waitFor(opts, callback) {
   /** @type {WaitForOptions | undefined} */
   let options
 
-  /** @type {(() => (T | Promise<T>)) | undefined} */
+  /** @type {((control: TimeoutControl) => (T | Promise<T>)) | undefined} */
   let resolvedCallback = callback
 
   if (typeof opts === "function") {
@@ -51,18 +52,29 @@ export default async function waitFor(opts, callback) {
   if (restOptsKeys.length > 0) throw new Error(`Unknown arguments given to waitFor: ${restOptsKeys.join(", ")}`)
   const startTime = Date.now()
   const endTime = startTime + waitTimeout
+
+  const controller = new AbortController()
+  const control = new TimeoutControl(controller.signal, endTime, "Timeout while waiting")
+  const timeoutId = setTimeout(() => controller.abort(new TimeoutError("Timeout while waiting")), waitTimeout)
+
   let lastError
 
-  while (Date.now() < endTime) {
-    try {
-      return await resolvedCallback()
-    } catch (error) {
-      lastError = error
-    }
-    await wait(waitTime)
-  }
+  try {
+    while (Date.now() < endTime) {
+      try {
+        return await resolvedCallback(control)
+      } catch (error) {
+        lastError = error
 
-  if (lastError) {
-    throw lastError
+        if (control.timedOut) throw error
+      }
+      await wait(waitTime)
+    }
+
+    if (lastError) {
+      throw lastError
+    }
+  } finally {
+    clearTimeout(timeoutId)
   }
 }

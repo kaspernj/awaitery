@@ -12,37 +12,39 @@ import wait from "./wait.js"
  */
 
 /**
- * @template T
- * @typedef {() => (T | Promise<T>)} RetryCallback
- */
-
-/**
- * Retries a callback until it succeeds or the timeout is reached without arguments.
+ * Retries without arguments or timeout.
  * @template T
  * @overload
- * @param {RetryCallback<T>} arg1 - The callback to retry.
- * @param {undefined} [arg2]
- * @returns {Promise<T>} Resolves with the callback result.
+ * @param {() => (T | Promise<T>)} callback
+ * @returns {Promise<T>}
  */
 /**
- * Retries a callback until it succeeds or the timeout is reached with arguments.
+ * Retries without a timeout — callback receives no TimeoutControl.
  * @template T
  * @overload
- * @param {RetryArgs} arg1 - The arguments.
- * @param {RetryCallback<T>} arg2 - The callback to retry.
- * @returns {Promise<T>} Resolves with the callback result.
+ * @param {Omit<RetryArgs, 'timeout'>} args
+ * @param {() => (T | Promise<T>)} callback
+ * @returns {Promise<T>}
+ */
+/**
+ * Retries with a timeout — callback always receives a defined TimeoutControl.
+ * @template T
+ * @overload
+ * @param {RetryArgs & {timeout: number}} args
+ * @param {(control: import("./timeout.js").TimeoutControl) => (T | Promise<T>)} callback
+ * @returns {Promise<T>}
  */
 /**
  * @template T
- * @param {RetryArgs | RetryCallback<T>} arg1 The arguments or the callback.
- * @param {RetryCallback<T>} [arg2] The callback when arguments are provided.
+ * @param {RetryArgs | ((control?: import("./timeout.js").TimeoutControl) => (T | Promise<T>))} arg1 The arguments or the callback.
+ * @param {(control?: import("./timeout.js").TimeoutControl) => (T | Promise<T>)} [arg2] The callback when arguments are provided.
  * @returns {Promise<T>} Resolves with the callback result.
  */
 export default async function retry(arg1, arg2) {
   /** @type {RetryArgs | undefined} */
   let args
 
-  /** @type {RetryCallback<T> | undefined} */
+  /** @type {((control?: import("./timeout.js").TimeoutControl) => (T | Promise<T>)) | undefined} */
   let callback
 
   if (typeof arg1 == "function" && arg2 === undefined) {
