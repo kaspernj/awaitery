@@ -110,6 +110,9 @@ describe("timeout", () => {
       await wait(60)
     }).catch(() => {})
 
+    // The race rejects right at the deadline, so wait past it before reading timedOut.
+    await wait(10)
+
     expect(control.timedOut).toBe(true)
   })
 
