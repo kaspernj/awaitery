@@ -1,6 +1,58 @@
 // @ts-check
 
-class TimeoutError extends Error {}
+export class TimeoutError extends Error {}
+
+/**
+ * Cooperative cancellation handle passed to the timeout callback. Lets the callback
+ * observe and react to the timeout firing between async operations.
+ */
+export class TimeoutControl {
+  /**
+   * @param {AbortSignal} signal - Aborted when the timeout fires.
+   * @param {number} deadline - Date.now() timestamp when the timeout expires.
+   * @param {string} errorMessage - The error message used when the deadline has passed but the signal hasn't aborted yet.
+   */
+  constructor(signal, deadline, errorMessage) {
+    /**
+     * An AbortSignal that is aborted when the timeout fires. Pass to fetch(), setTimeout, streams, etc.
+     * @type {AbortSignal}
+     */
+    this.signal = signal
+
+    /** @type {number} */
+    this._deadline = deadline
+
+    /** @type {string} */
+    this._errorMessage = errorMessage
+  }
+
+  /** Throws TimeoutError if the timeout has fired. Call this between async operations to bail early. */
+  check() {
+    if (Date.now() >= this._deadline) {
+      // If the signal already aborted, throw its reason. Otherwise the deadline passed without the
+      // event loop processing the timer (synchronous work), so throw our own TimeoutError.
+      this.signal.throwIfAborted()
+
+      throw new TimeoutError(this._errorMessage)
+    }
+  }
+
+  /**
+   * True if the timeout has already fired.
+   * @returns {boolean} Whether the timeout has fired.
+   */
+  get timedOut() {
+    return Date.now() >= this._deadline
+  }
+
+  /**
+   * Milliseconds remaining until the deadline, or 0 if already past.
+   * @returns {number} Milliseconds remaining until the deadline.
+   */
+  remaining() {
+    return Math.max(0, this._deadline - Date.now())
+  }
+}
 
 /**
  * @typedef {object} TimeoutArgs
@@ -12,7 +64,7 @@ class TimeoutError extends Error {}
  * Runs a callback with a timeout.
  * @template T
  * @overload
- * @param {() => (T | Promise<T>)} callback - The callback to run.
+ * @param {(control: TimeoutControl) => (T | Promise<T>)} callback - The callback to run.
  * @returns {Promise<T>} Resolves with the callback result.
  */
 /**
@@ -20,21 +72,21 @@ class TimeoutError extends Error {}
  * @template T
  * @overload
  * @param {TimeoutArgs} args - The arguments.
- * @param {() => (T | Promise<T>)} callback - The callback to run.
+ * @param {(control: TimeoutControl) => (T | Promise<T>)} callback - The callback to run.
  * @returns {Promise<T>} Resolves with the callback result.
  */
 /**
  * Runs a callback with a timeout.
  * @template T
- * @param {TimeoutArgs | (() => (T | Promise<T>))} arg1 - The arguments or the callback.
- * @param {() => (T | Promise<T>)} [arg2] - The callback when arguments are provided.
+ * @param {TimeoutArgs | ((control: TimeoutControl) => (T | Promise<T>))} arg1 - The arguments or the callback.
+ * @param {(control: TimeoutControl) => (T | Promise<T>)} [arg2] - The callback when arguments are provided.
  * @returns {Promise<T>} Resolves with the callback result.
  */
 export default async function timeout(arg1, arg2) {
   /** @type {TimeoutArgs | undefined} */
   let args
 
-  /** @type {(() => (T | Promise<T>)) | undefined} */
+  /** @type {((control: TimeoutControl) => (T | Promise<T>)) | undefined} */
   let callback
 
   if (typeof arg1 == "function" && arg2 === undefined) {
@@ -53,15 +105,21 @@ export default async function timeout(arg1, arg2) {
 
   if (restArgsKeys.length > 0) throw new Error(`Unknown arguments given to timeout: ${restArgsKeys.join(", ")}`)
 
+  const controller = new AbortController()
+  const control = new TimeoutControl(controller.signal, Date.now() + timeoutNumber, errorMessage)
+
   let timeoutId
   const timeoutPromise = new Promise((_, reject) => {
     timeoutId = setTimeout(() => {
-      reject(new TimeoutError(errorMessage))
+      const timeoutError = new TimeoutError(errorMessage)
+
+      controller.abort(timeoutError)
+      reject(timeoutError)
     }, timeoutNumber)
   })
 
   try {
-    return await Promise.race([Promise.resolve().then(callback), timeoutPromise])
+    return await Promise.race([Promise.resolve().then(() => callback(control)), timeoutPromise])
   } finally {
     clearTimeout(timeoutId)
   }

@@ -1,6 +1,6 @@
 {
   "name": "awaitery",
-  "version": "1.0.13",
+  "version": "1.0.15",
   "description": "Wait for things to happen or just wait in general.",
   "files": [
     "build/**"
@@ -27,6 +27,7 @@
     "build": "rm -rf build && tsc",
     "lint": "npm run eslint && npm run typecheck",
     "all-checks": "npm run lint && npm run typecheck && npm run test",
+    "prepare": "npm run build",
     "prepublishOnly": "npm run build",
     "test": "node jasmine.mjs",
     "typecheck": "tsc --noEmit",
