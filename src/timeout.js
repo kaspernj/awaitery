@@ -10,8 +10,9 @@ export class TimeoutControl {
   /**
    * @param {AbortSignal} signal - Aborted when the timeout fires.
    * @param {number} deadline - Date.now() timestamp when the timeout expires.
+   * @param {string} errorMessage - The error message used when the deadline has passed but the signal hasn't aborted yet.
    */
-  constructor(signal, deadline) {
+  constructor(signal, deadline, errorMessage) {
     /**
      * An AbortSignal that is aborted when the timeout fires. Pass to fetch(), setTimeout, streams, etc.
      * @type {AbortSignal}
@@ -20,11 +21,20 @@ export class TimeoutControl {
 
     /** @type {number} */
     this._deadline = deadline
+
+    /** @type {string} */
+    this._errorMessage = errorMessage
   }
 
   /** Throws TimeoutError if the timeout has fired. Call this between async operations to bail early. */
   check() {
-    this.signal.throwIfAborted()
+    if (Date.now() >= this._deadline) {
+      // If the signal already aborted, throw its reason. Otherwise the deadline passed without the
+      // event loop processing the timer (synchronous work), so throw our own TimeoutError.
+      this.signal.throwIfAborted()
+
+      throw new TimeoutError(this._errorMessage)
+    }
   }
 
   /**
@@ -32,7 +42,7 @@ export class TimeoutControl {
    * @returns {boolean} Whether the timeout has fired.
    */
   get timedOut() {
-    return this.signal.aborted
+    return Date.now() >= this._deadline
   }
 
   /**
@@ -96,7 +106,7 @@ export default async function timeout(arg1, arg2) {
   if (restArgsKeys.length > 0) throw new Error(`Unknown arguments given to timeout: ${restArgsKeys.join(", ")}`)
 
   const controller = new AbortController()
-  const control = new TimeoutControl(controller.signal, Date.now() + timeoutNumber)
+  const control = new TimeoutControl(controller.signal, Date.now() + timeoutNumber, errorMessage)
 
   let timeoutId
   const timeoutPromise = new Promise((_, reject) => {

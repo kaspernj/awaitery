@@ -69,6 +69,19 @@ describe("timeout", () => {
     expect(error.constructor).toBe(TimeoutError)
   })
 
+  it("check() throws even when the event loop hasn't processed the timer yet", async () => {
+    await expectAsync(timeout({timeout: 5}, async (control) => {
+      // Busy-wait past the deadline without yielding
+      const deadline = Date.now() + 10
+      while (Date.now() < deadline) {
+        // Intentionally spin without yielding to the event loop.
+      }
+      control.check()
+
+      return "done"
+    })).toBeRejectedWithError(/Timeout while trying/)
+  })
+
   it("check() does not throw when called before the timeout fires", async () => {
     await expectAsync(timeout({timeout: 300}, async (control) => {
       await wait(10)
