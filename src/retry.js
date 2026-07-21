@@ -13,7 +13,7 @@ import wait from "./wait.js"
 
 /**
  * @template T
- * @typedef {() => (T | Promise<T>)} RetryCallback
+ * @typedef {(control?: import("./timeout.js").TimeoutControl) => (T | Promise<T>)} RetryCallback
  */
 
 /**
