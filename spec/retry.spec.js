@@ -59,7 +59,7 @@ describe("retry", () => {
   it("passes a TimeoutControl to the callback when a timeout is set", async () => {
     let received
 
-    await retry({tries: 1, timeout: 100}, (control) => {
+    await retry({tries: 1, timeout: 100}, ({control}) => {
       received = control
       return "ok"
     })
@@ -70,7 +70,7 @@ describe("retry", () => {
   it("lets the callback bail via control.check() once the timeout is exceeded", async () => {
     let checked = false
 
-    await expectAsync(retry({tries: 1, timeout: 20}, (control) => {
+    await expectAsync(retry({tries: 1, timeout: 20}, ({control}) => {
       const deadline = Date.now() + 40
 
       // Keep the event loop busy past the timeout so control.check() is the thing that throws.
@@ -88,7 +88,7 @@ describe("retry", () => {
   it("reports control.timedOut as true after the deadline passes", async () => {
     let captured
 
-    await retry({tries: 1, timeout: 40}, (control) => {
+    await retry({tries: 1, timeout: 40}, ({control}) => {
       captured = control
       return "ok"
     })

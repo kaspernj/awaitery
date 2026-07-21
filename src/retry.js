@@ -31,20 +31,20 @@ import wait from "./wait.js"
  * @template T
  * @overload
  * @param {RetryArgs & {timeout: number}} args
- * @param {(control: import("./timeout.js").TimeoutControl) => (T | Promise<T>)} callback
+ * @param {(args: {control: import("./timeout.js").TimeoutControl}) => (T | Promise<T>)} callback
  * @returns {Promise<T>}
  */
 /**
  * @template T
- * @param {RetryArgs | ((control?: import("./timeout.js").TimeoutControl) => (T | Promise<T>))} arg1 The arguments or the callback.
- * @param {(control?: import("./timeout.js").TimeoutControl) => (T | Promise<T>)} [arg2] The callback when arguments are provided.
+ * @param {RetryArgs | ((args?: {control: import("./timeout.js").TimeoutControl}) => (T | Promise<T>))} arg1 The arguments or the callback.
+ * @param {(args?: {control: import("./timeout.js").TimeoutControl}) => (T | Promise<T>)} [arg2] The callback when arguments are provided.
  * @returns {Promise<T>} Resolves with the callback result.
  */
 export default async function retry(arg1, arg2) {
   /** @type {RetryArgs | undefined} */
   let args
 
-  /** @type {((control?: import("./timeout.js").TimeoutControl) => (T | Promise<T>)) | undefined} */
+  /** @type {((args?: {control: import("./timeout.js").TimeoutControl}) => (T | Promise<T>)) | undefined} */
   let callback
 
   if (typeof arg1 == "function" && arg2 === undefined) {

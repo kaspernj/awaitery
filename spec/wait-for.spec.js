@@ -30,7 +30,7 @@ describe("waitFor", () => {
   it("passes a TimeoutControl to the callback", async () => {
     let received
 
-    await waitFor({timeout: 100, wait: 10}, (control) => {
+    await waitFor({timeout: 100, wait: 10}, ({control}) => {
       received = control
       return "ready"
     })
@@ -39,7 +39,7 @@ describe("waitFor", () => {
   })
 
   it("throws from control.check() when work runs past the deadline", async () => {
-    await expectAsync(waitFor({timeout: 30, wait: 5}, async (control) => {
+    await expectAsync(waitFor({timeout: 30, wait: 5}, async ({control}) => {
       // Sleep past the deadline, then let control.check() surface the timeout.
       await wait(50)
       control.check()
@@ -51,7 +51,7 @@ describe("waitFor", () => {
   it("reports control.timedOut as true after the deadline passes", async () => {
     let captured
 
-    await waitFor({timeout: 40, wait: 5}, (control) => {
+    await waitFor({timeout: 40, wait: 5}, ({control}) => {
       captured = control
       return "ready"
     })
@@ -64,7 +64,7 @@ describe("waitFor", () => {
   it("reports a positive control.remaining() before the deadline", async () => {
     let remaining
 
-    await waitFor({timeout: 500, wait: 5}, (control) => {
+    await waitFor({timeout: 500, wait: 5}, ({control}) => {
       remaining = control.remaining()
       return "ready"
     })

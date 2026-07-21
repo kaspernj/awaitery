@@ -13,7 +13,7 @@ import wait from "./wait.js"
  * Waits for a callback to run without throwing an error and retries until the timeout is reached.
  * @template T
  * @overload
- * @param {(control: TimeoutControl) => (T | Promise<T>)} callback The callback.
+ * @param {(args: {control: TimeoutControl}) => (T | Promise<T>)} callback The callback.
  * @returns {Promise<T>} Resolves with the callback result.
  */
 /**
@@ -21,21 +21,21 @@ import wait from "./wait.js"
  * @template T
  * @overload
  * @param {WaitForOptions} opts Options.
- * @param {(control: TimeoutControl) => (T | Promise<T>)} callback The callback.
+ * @param {(args: {control: TimeoutControl}) => (T | Promise<T>)} callback The callback.
  * @returns {Promise<T>} Resolves with the callback result.
  */
 /**
  * Waits for a callback to run without throwing an error and retries until the timeout is reached.
  * @template T
- * @param {WaitForOptions | ((control: TimeoutControl) => (T | Promise<T>))} opts Options or the callback when no options are provided.
- * @param {(control: TimeoutControl) => (T | Promise<T>)} [callback] The callback.
+ * @param {WaitForOptions | ((args: {control: TimeoutControl}) => (T | Promise<T>))} opts Options or the callback when no options are provided.
+ * @param {(args: {control: TimeoutControl}) => (T | Promise<T>)} [callback] The callback.
  * @returns {Promise<T>} Resolves with the callback result.
  */
 export default async function waitFor(opts, callback) {
   /** @type {WaitForOptions | undefined} */
   let options
 
-  /** @type {((control: TimeoutControl) => (T | Promise<T>)) | undefined} */
+  /** @type {((args: {control: TimeoutControl}) => (T | Promise<T>)) | undefined} */
   let resolvedCallback = callback
 
   if (typeof opts === "function") {
@@ -62,7 +62,7 @@ export default async function waitFor(opts, callback) {
   try {
     while (Date.now() < endTime) {
       try {
-        return await resolvedCallback(control)
+        return await resolvedCallback({control})
       } catch (error) {
         lastError = error
 
