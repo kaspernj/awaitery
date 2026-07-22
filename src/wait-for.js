@@ -56,7 +56,8 @@ export default async function waitFor(opts, callback) {
 
   const controller = new AbortController()
   const control = new TimeoutControl(controller.signal, endTime, "Timeout while waiting")
-  const timeoutId = setTimeout(() => controller.abort(new TimeoutError("Timeout while waiting")), waitTimeout)
+  const deadlineError = new TimeoutError("Timeout while waiting")
+  const timeoutId = setTimeout(() => controller.abort(deadlineError), waitTimeout)
 
   // Compose the external signal into control.signal so callbacks observe external cancellation too.
   /** @type {(() => void) | undefined} */
@@ -75,6 +76,8 @@ export default async function waitFor(opts, callback) {
   let lastError
 
   try {
+    if (signal?.aborted) throw signal.reason
+
     while (Date.now() < endTime) {
       // Don't start a new callback after cancellation.
       if (signal?.aborted) throw signal.reason
@@ -97,8 +100,15 @@ export default async function waitFor(opts, callback) {
 
         if (control.timedOut) control.check()
       }
-      // Cancellation-aware delay: an abort here rejects with signal.reason.
-      await wait(waitTime, {signal})
+      // The composed signal bounds the delay at the deadline. A deadline between attempts keeps
+      // the legacy last-error result; external cancellation still surfaces its own reason.
+      try {
+        await wait(waitTime, {signal: control.signal})
+      } catch (error) {
+        if (error === deadlineError && lastError) throw lastError
+
+        throw error
+      }
     }
 
     if (lastError) {

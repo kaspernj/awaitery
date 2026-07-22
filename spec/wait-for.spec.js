@@ -21,6 +21,32 @@ describe("waitFor", () => {
     })).toBeRejectedWithError("still failing")
   })
 
+  it("promptly rethrows the last error when the deadline expires during a longer retry delay", async () => {
+    const controller = new AbortController()
+    const lastError = new Error("last callback error")
+    const externalReason = new Error("later external abort")
+    let deadlineReached
+    let resolveDeadlineReached
+
+    deadlineReached = new Promise((resolve) => {
+      resolveDeadlineReached = resolve
+    })
+
+    const start = Date.now()
+    const promise = waitFor({timeout: 30, wait: 1000, signal: controller.signal}, ({control}) => {
+      control.signal.addEventListener("abort", resolveDeadlineReached, {once: true})
+      throw lastError
+    })
+
+    await deadlineReached
+    setTimeout(() => controller.abort(externalReason), 30)
+
+    const caught = await promise.catch((error) => error)
+
+    expect(caught).toBe(lastError)
+    expect(Date.now() - start).toBeLessThan(500)
+  })
+
   it("throws on unknown options", async () => {
     await expectAsync(waitFor({nope: true}, async () => {
       return "ignored"
@@ -80,6 +106,23 @@ describe("waitFor", () => {
 
     let callbackRan = false
     const caught = await waitFor({timeout: 500, wait: 10, signal: controller.signal}, () => {
+      callbackRan = true
+
+      return "ready"
+    }).catch((error) => error)
+
+    expect(caught).toBe(reason)
+    expect(callbackRan).toBe(false)
+  })
+
+  it("makes no callback and rejects with signal.reason at a zero timeout when already aborted", async () => {
+    const controller = new AbortController()
+    const reason = new Error("cancelled")
+
+    controller.abort(reason)
+
+    let callbackRan = false
+    const caught = await waitFor({timeout: 0, signal: controller.signal}, () => {
       callbackRan = true
 
       return "ready"

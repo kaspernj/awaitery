@@ -3,6 +3,26 @@ import {TimeoutControl, TimeoutError} from "../src/timeout.js"
 import wait from "../src/wait.js"
 
 describe("retry", () => {
+  it("calls a legacy callback without arguments", async () => {
+    let receivedArgumentsLength
+
+    await retry(function () {
+      receivedArgumentsLength = arguments.length
+    })
+
+    expect(receivedArgumentsLength).toBe(0)
+  })
+
+  it("calls an options callback without arguments when no cancellation context is requested", async () => {
+    let receivedArgumentsLength
+
+    await retry({tries: 1}, function () {
+      receivedArgumentsLength = arguments.length
+    })
+
+    expect(receivedArgumentsLength).toBe(0)
+  })
+
   it("retries until the callback succeeds", async () => {
     let attempts = 0
 
@@ -310,6 +330,44 @@ describe("retry", () => {
 
     expect(caught).toBe(reason)
     expect(attempts).toBe(1)
+  })
+
+  it("lets cancellation during an async shouldRetry win over the predicate error", async () => {
+    const controller = new AbortController()
+    const reason = new Error("cancelled")
+    const predicateError = new Error("predicate failed")
+    /** @type {() => void} */
+    let resolvePredicateStarted = () => {}
+    const predicateStarted = new Promise((resolve) => {
+      resolvePredicateStarted = resolve
+    })
+    let attempts = 0
+
+    const promise = retry(
+      {
+        tries: 3,
+        wait: 1000,
+        signal: controller.signal,
+        shouldRetry: async ({signal}) => {
+          resolvePredicateStarted()
+          await new Promise((resolve) => signal?.addEventListener("abort", resolve, {once: true}))
+          throw predicateError
+        }
+      },
+      async () => {
+        attempts += 1
+        throw new Error("original")
+      }
+    )
+
+    await predicateStarted
+    const start = Date.now()
+    controller.abort(reason)
+    const caught = await promise.catch((error) => error)
+
+    expect(caught).toBe(reason)
+    expect(attempts).toBe(1)
+    expect(Date.now() - start).toBeLessThan(500)
   })
 
   it("composes the external signal into the per-attempt TimeoutControl", async () => {

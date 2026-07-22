@@ -25,22 +25,22 @@ import wait from "./wait.js"
 
 /**
  * @template T
- * @typedef {((args: {signal?: AbortSignal}) => (T | Promise<T>)) | ((args: {control: import("./timeout.js").TimeoutControl}) => (T | Promise<T>))} RetryCallback
+ * @typedef {(() => (T | Promise<T>)) | ((args: {signal: AbortSignal}) => (T | Promise<T>)) | ((args: {control: import("./timeout.js").TimeoutControl}) => (T | Promise<T>))} RetryCallback
  */
 
 /**
  * Retries without arguments or timeout.
  * @template T
  * @overload
- * @param {(args: {signal?: AbortSignal}) => (T | Promise<T>)} callback The callback; receives a forward-compatible `{signal}` object (`signal` is undefined here).
+ * @param {() => (T | Promise<T>)} callback The callback; receives no arguments.
  * @returns {Promise<T>}
  */
 /**
- * Retries without a timeout — callback receives no TimeoutControl, only the forward-compatible `{signal}` object.
+ * Retries without a timeout — callback receives `{signal}` only when an external signal is provided.
  * @template T
  * @overload
  * @param {Omit<RetryArgs, 'timeout'>} args
- * @param {(args: {signal?: AbortSignal}) => (T | Promise<T>)} callback The callback; receives `{signal}` so it can cooperate with external cancellation.
+ * @param {(() => (T | Promise<T>)) | ((args: {signal: AbortSignal}) => (T | Promise<T>))} callback The callback; receives `{signal}` when external cancellation is requested, otherwise no arguments.
  * @returns {Promise<T>}
  */
 /**
@@ -98,10 +98,10 @@ export default async function retry(arg1, arg2) {
 
         return await timeout({timeout: timeoutNumber, errorMessage: timeoutErrorMessage, signal}, timedCallback)
       } else {
-        // Without a per-attempt timeout there is no TimeoutControl, but the callback can still
-        // cooperate with external cancellation through the forward-compatible {signal} argument.
-        const signalCallback = /** @type {(args: {signal?: AbortSignal}) => (T | Promise<T>)} */ (callback)
-        const result = await signalCallback({signal})
+        // Preserve the legacy zero-argument call unless external cancellation was requested.
+        const result = signal
+          ? await /** @type {(args: {signal: AbortSignal}) => (T | Promise<T>)} */ (callback)({signal})
+          : await /** @type {() => (T | Promise<T>)} */ (callback)()
 
         // A callback that ignored its signal may resolve after cancellation; cancellation must win
         // over this now-stale success.
@@ -117,7 +117,14 @@ export default async function retry(arg1, arg2) {
       if (shouldRetry) {
         // shouldRetry may be async and observe the external signal; a cancellation seen while it runs
         // must win over both rethrowing the current error and starting another attempt or delay.
-        const retryAllowed = await shouldRetry({error, tryNumber, tries, signal})
+        let retryAllowed
+
+        try {
+          retryAllowed = await shouldRetry({error, tryNumber, tries, signal})
+        } catch (predicateError) {
+          if (signal?.aborted) throw signal.reason
+          throw predicateError
+        }
 
         if (signal?.aborted) throw signal.reason
         if (!retryAllowed) throw error
