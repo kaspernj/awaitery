@@ -46,7 +46,7 @@ describe("retry", () => {
     const attemptTimes = []
 
     await expectAsync(retry({tries: 3, wait: waitTime}, async () => {
-      attemptTimes.push(Date.now())
+      attemptTimes.push(performance.now())
       if (attemptTimes.length < 3) throw new Error("nope")
       return "ok"
     })).toBeResolvedTo("ok")
