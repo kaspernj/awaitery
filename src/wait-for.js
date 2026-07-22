@@ -85,16 +85,17 @@ export default async function waitFor(opts, callback) {
         // The callback resolved, but it may have ignored cancellation or the deadline and resolved
         // anyway. A now-stale success must not win: external cancellation and the deadline take
         // precedence. control.check() throws the composed abort reason or a TimeoutError.
-        if (signal?.aborted) throw signal.reason
         control.check()
+        if (signal?.aborted) throw signal.reason
 
         return result
       } catch (error) {
+        control.check()
         if (signal?.aborted) throw signal.reason
 
         lastError = error
 
-        if (control.timedOut) throw error
+        if (control.timedOut) control.check()
       }
       // Cancellation-aware delay: an abort here rejects with signal.reason.
       await wait(waitTime, {signal})

@@ -93,7 +93,7 @@ export default async function retry(arg1, arg2) {
     if (signal?.aborted) throw signal.reason
 
     try {
-      if (timeoutNumber) {
+      if (timeoutNumber != null) {
         const timedCallback = /** @type {(args: {control: import("./timeout.js").TimeoutControl}) => (T | Promise<T>)} */ (callback)
 
         return await timeout({timeout: timeoutNumber, errorMessage: timeoutErrorMessage, signal}, timedCallback)

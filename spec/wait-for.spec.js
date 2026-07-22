@@ -157,6 +157,38 @@ describe("waitFor", () => {
     await expectAsync(promise).toBeRejectedWithError(TimeoutError, /Timeout while waiting/)
   })
 
+  it("rejects with TimeoutError when the deadline expires during a callback that later rejects", async () => {
+    const promise = waitFor({timeout: 30, wait: 10}, async () => {
+      await wait(60)
+      throw new Error("stale callback error")
+    })
+
+    await expectAsync(promise).toBeRejectedWithError(TimeoutError, /Timeout while waiting/)
+  })
+
+  for (const callbackOutcome of ["resolves", "rejects"]) {
+    it(`preserves deadline precedence when an external abort follows and the callback ${callbackOutcome}`, async () => {
+      const controller = new AbortController()
+      const externalReason = new Error("later external abort")
+      let settleCallback
+      let deadlineAborted
+
+      const promise = waitFor({timeout: 20, wait: 5, signal: controller.signal}, ({control}) => {
+        deadlineAborted = new Promise((resolve) => control.signal.addEventListener("abort", resolve, {once: true}))
+
+        return new Promise((resolve, reject) => {
+          settleCallback = callbackOutcome === "resolves" ? () => resolve("stale success") : () => reject(new Error("stale callback error"))
+        })
+      })
+
+      await deadlineAborted
+      controller.abort(externalReason)
+      settleCallback()
+
+      await expectAsync(promise).toBeRejectedWithError(TimeoutError, /Timeout while waiting/)
+    })
+  }
+
   it("clears the deadline timer on success so control.signal never aborts", async () => {
     let captured
 

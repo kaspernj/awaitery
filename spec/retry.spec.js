@@ -1,5 +1,5 @@
 import retry from "../src/retry.js"
-import {TimeoutControl} from "../src/timeout.js"
+import {TimeoutControl, TimeoutError} from "../src/timeout.js"
 import wait from "../src/wait.js"
 
 describe("retry", () => {
@@ -31,6 +31,15 @@ describe("retry", () => {
       await wait(50)
       return "slow"
     })).toBeRejectedWithError(/Timeout while trying/)
+  })
+
+  it("honors an explicit zero timeout", async () => {
+    await expectAsync(retry({tries: 1, timeout: 0}, async ({control}) => {
+      if (!control) return "no timeout"
+
+      await wait(10)
+      return "slow"
+    })).toBeRejectedWithError(TimeoutError, /Timeout while trying/)
   })
 
   it("passes custom timeout error messages to timeout", async () => {
