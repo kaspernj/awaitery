@@ -99,4 +99,231 @@ describe("retry", () => {
 
     expect(captured.timedOut).toBe(true)
   })
+
+  it("rethrows the current error without another attempt or delay when shouldRetry returns false", async () => {
+    let attempts = 0
+    const start = Date.now()
+
+    await expectAsync(retry({tries: 5, wait: 1000, shouldRetry: () => false}, async () => {
+      attempts += 1
+      throw new Error(`fail ${attempts}`)
+    })).toBeRejectedWithError("fail 1")
+
+    expect(attempts).toBe(1)
+    expect(Date.now() - start).toBeLessThan(500)
+  })
+
+  it("keeps retrying while shouldRetry returns true", async () => {
+    let attempts = 0
+
+    await expectAsync(retry({tries: 5, wait: 5, shouldRetry: () => true}, async () => {
+      attempts += 1
+      if (attempts < 3) throw new Error("not yet")
+
+      return "ok"
+    })).toBeResolvedTo("ok")
+
+    expect(attempts).toBe(3)
+  })
+
+  it("awaits an async shouldRetry result", async () => {
+    let attempts = 0
+
+    await expectAsync(retry({tries: 3, wait: 5, shouldRetry: async () => false}, async () => {
+      attempts += 1
+      throw new Error("boom")
+    })).toBeRejectedWithError("boom")
+
+    expect(attempts).toBe(1)
+  })
+
+  it("passes {error, tryNumber, tries} to shouldRetry", async () => {
+    /** @type {Array<{error: unknown, tryNumber: number, tries: number}>} */
+    const calls = []
+    let attempts = 0
+
+    await retry(
+      {
+        tries: 3,
+        wait: 5,
+        shouldRetry: (args) => {
+          calls.push(args)
+
+          return true
+        }
+      },
+      async () => {
+        attempts += 1
+        if (attempts < 2) throw new Error(`fail ${attempts}`)
+
+        return "ok"
+      }
+    )
+
+    expect(calls).toHaveSize(1)
+    expect(calls[0].tryNumber).toBe(1)
+    expect(calls[0].tries).toBe(3)
+    expect(calls[0].error).toBeInstanceOf(Error)
+  })
+
+  it("propagates an error thrown by shouldRetry", async () => {
+    let attempts = 0
+
+    await expectAsync(retry({tries: 3, wait: 5, shouldRetry: () => { throw new Error("shouldRetry exploded") }}, async () => {
+      attempts += 1
+      throw new Error("original")
+    })).toBeRejectedWithError("shouldRetry exploded")
+
+    expect(attempts).toBe(1)
+  })
+
+  it("makes no attempt and rejects with signal.reason when already aborted", async () => {
+    const controller = new AbortController()
+    const reason = new Error("cancelled")
+
+    controller.abort(reason)
+
+    let attempts = 0
+    const caught = await retry({tries: 3, wait: 5, signal: controller.signal}, async () => {
+      attempts += 1
+
+      return "ok"
+    }).catch((error) => error)
+
+    expect(caught).toBe(reason)
+    expect(attempts).toBe(0)
+  })
+
+  it("cancels an in-progress retry delay and makes no further attempt", async () => {
+    const controller = new AbortController()
+    const reason = new Error("cancelled")
+    let attempts = 0
+
+    const promise = retry({tries: 3, wait: 1000, signal: controller.signal}, async () => {
+      attempts += 1
+      throw new Error("nope")
+    })
+
+    setTimeout(() => controller.abort(reason), 20)
+
+    const caught = await promise.catch((error) => error)
+
+    expect(caught).toBe(reason)
+    expect(attempts).toBe(1)
+  })
+
+  it("passes the external signal to a no-timeout callback so it can cancel cooperatively", async () => {
+    const controller = new AbortController()
+    const reason = new Error("cancelled")
+
+    // Cooperative: the callback waits on the very signal it was handed and rejects with its reason.
+    const promise = retry({tries: 3, signal: controller.signal}, async ({signal}) => {
+      await wait(1000, {signal})
+
+      return "unreached"
+    })
+
+    setTimeout(() => controller.abort(reason), 20)
+
+    const caught = await promise.catch((error) => error)
+
+    expect(caught).toBe(reason)
+  })
+
+  it("lets cancellation win over a non-cooperative no-timeout callback that later resolves", async () => {
+    const controller = new AbortController()
+    const reason = new Error("cancelled")
+
+    // Non-cooperative: ignores cancellation and resolves successfully after the abort fires.
+    const promise = retry({tries: 3, signal: controller.signal}, async () => {
+      await wait(60)
+
+      return "stale success"
+    })
+
+    setTimeout(() => controller.abort(reason), 20)
+
+    const caught = await promise.catch((error) => error)
+
+    expect(caught).toBe(reason)
+  })
+
+  it("passes the external signal to shouldRetry so the predicate can cooperate", async () => {
+    const controller = new AbortController()
+    let receivedSignal
+    let attempts = 0
+
+    await retry(
+      {
+        tries: 3,
+        wait: 5,
+        signal: controller.signal,
+        shouldRetry: ({signal}) => {
+          receivedSignal = signal
+
+          return false
+        }
+      },
+      async () => {
+        attempts += 1
+        throw new Error("nope")
+      }
+    ).catch(() => {})
+
+    expect(receivedSignal).toBe(controller.signal)
+    expect(attempts).toBe(1)
+  })
+
+  it("lets cancellation during an async shouldRetry win over rethrowing the attempt error", async () => {
+    const controller = new AbortController()
+    const reason = new Error("cancelled")
+    let attempts = 0
+
+    const promise = retry(
+      {
+        tries: 3,
+        wait: 5,
+        signal: controller.signal,
+        shouldRetry: async () => {
+          // Abort mid-decision; the pending cancellation must win once this settles.
+          controller.abort(reason)
+
+          return false
+        }
+      },
+      async () => {
+        attempts += 1
+        throw new Error("original")
+      }
+    )
+
+    const caught = await promise.catch((error) => error)
+
+    expect(caught).toBe(reason)
+    expect(attempts).toBe(1)
+  })
+
+  it("composes the external signal into the per-attempt TimeoutControl", async () => {
+    const controller = new AbortController()
+    const reason = new Error("cancelled")
+    let captured
+    let attempts = 0
+
+    const promise = retry({tries: 3, timeout: 1000, wait: 0, signal: controller.signal}, async ({control}) => {
+      attempts += 1
+      captured = control
+      await wait(1000, {signal: control.signal})
+
+      return "unreached"
+    })
+
+    setTimeout(() => controller.abort(reason), 20)
+
+    const caught = await promise.catch((error) => error)
+
+    expect(caught).toBe(reason)
+    expect(captured.signal.aborted).toBe(true)
+    expect(captured.signal.reason).toBe(reason)
+    expect(attempts).toBe(1)
+  })
 })

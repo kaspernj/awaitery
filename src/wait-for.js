@@ -7,6 +7,7 @@ import wait from "./wait.js"
  * @typedef {object} WaitForOptions
  * @property {number} [timeout] The timeout in milliseconds (default: 5000).
  * @property {number} [wait] The wait time in milliseconds (default: 50).
+ * @property {AbortSignal} [signal] External AbortSignal composed with the deadline. When it aborts, `control.signal` aborts with `signal.reason`, retry delays are cancelled, no further callback starts, and the run rejects with that reason.
  */
 
 /**
@@ -46,7 +47,7 @@ export default async function waitFor(opts, callback) {
 
   if (resolvedCallback == undefined) throw new Error("Somehow callback is undefined")
 
-  const {timeout: waitTimeout = 5000, wait: waitTime = 50, ...restOpts} = options || {}
+  const {timeout: waitTimeout = 5000, wait: waitTime = 50, signal, ...restOpts} = options || {}
   const restOptsKeys = Object.keys(restOpts)
 
   if (restOptsKeys.length > 0) throw new Error(`Unknown arguments given to waitFor: ${restOptsKeys.join(", ")}`)
@@ -57,18 +58,46 @@ export default async function waitFor(opts, callback) {
   const control = new TimeoutControl(controller.signal, endTime, "Timeout while waiting")
   const timeoutId = setTimeout(() => controller.abort(new TimeoutError("Timeout while waiting")), waitTimeout)
 
+  // Compose the external signal into control.signal so callbacks observe external cancellation too.
+  /** @type {(() => void) | undefined} */
+  let onExternalAbort
+
+  if (signal) {
+    if (signal.aborted) {
+      controller.abort(signal.reason)
+    } else {
+      onExternalAbort = () => controller.abort(signal.reason)
+
+      signal.addEventListener("abort", onExternalAbort)
+    }
+  }
+
   let lastError
 
   try {
     while (Date.now() < endTime) {
+      // Don't start a new callback after cancellation.
+      if (signal?.aborted) throw signal.reason
+
       try {
-        return await resolvedCallback({control})
+        const result = await resolvedCallback({control})
+
+        // The callback resolved, but it may have ignored cancellation or the deadline and resolved
+        // anyway. A now-stale success must not win: external cancellation and the deadline take
+        // precedence. control.check() throws the composed abort reason or a TimeoutError.
+        if (signal?.aborted) throw signal.reason
+        control.check()
+
+        return result
       } catch (error) {
+        if (signal?.aborted) throw signal.reason
+
         lastError = error
 
         if (control.timedOut) throw error
       }
-      await wait(waitTime)
+      // Cancellation-aware delay: an abort here rejects with signal.reason.
+      await wait(waitTime, {signal})
     }
 
     if (lastError) {
@@ -76,5 +105,6 @@ export default async function waitFor(opts, callback) {
     }
   } finally {
     clearTimeout(timeoutId)
+    if (signal && onExternalAbort) signal.removeEventListener("abort", onExternalAbort)
   }
 }
