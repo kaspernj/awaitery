@@ -82,6 +82,18 @@ describe("timeout", () => {
     })).toBeRejectedWithError(/Timeout while trying/)
   })
 
+  it("check() throws the external abort reason immediately when the composed signal aborted before the deadline", () => {
+    const controller = new AbortController()
+    const reason = new Error("cancelled")
+
+    controller.abort(reason)
+
+    // Substantial deadline time remains, but the composed signal is already aborted externally.
+    const control = new TimeoutControl(controller.signal, Date.now() + 10000, "Timeout while trying")
+
+    expect(() => control.check()).toThrow(reason)
+  })
+
   it("check() does not throw when called before the timeout fires", async () => {
     await expectAsync(timeout({timeout: 300}, async ({control}) => {
       await wait(10)
@@ -140,6 +152,90 @@ describe("timeout", () => {
     await wait(20)
 
     expect(control.remaining()).toBe(0)
+  })
+
+  it("rejects immediately with the external reason when the signal is already aborted", async () => {
+    const controller = new AbortController()
+    const reason = new Error("cancelled")
+
+    controller.abort(reason)
+
+    let callbackRan = false
+    const caught = await timeout({timeout: 300, signal: controller.signal}, async () => {
+      callbackRan = true
+
+      return "done"
+    }).catch((error) => error)
+
+    expect(caught).toBe(reason)
+    expect(callbackRan).toBe(false)
+  })
+
+  it("rejects with the external reason and aborts control.signal with it when cancelled first", async () => {
+    const controller = new AbortController()
+    const reason = new Error("cancelled")
+    let captured
+
+    const promise = timeout({timeout: 1000, signal: controller.signal}, async ({control}) => {
+      captured = control
+      await wait(1000, {signal: control.signal})
+
+      return "done"
+    })
+
+    setTimeout(() => controller.abort(reason), 20)
+
+    const caught = await promise.catch((error) => error)
+
+    expect(caught).toBe(reason)
+    expect(captured.signal.aborted).toBe(true)
+    expect(captured.signal.reason).toBe(reason)
+  })
+
+  it("rejects with a TimeoutError when the deadline wins the race against the external signal", async () => {
+    const controller = new AbortController()
+    let captured
+
+    const error = await timeout({timeout: 20, signal: controller.signal}, async ({control}) => {
+      captured = control
+      await wait(200)
+
+      return "done"
+    }).catch((caughtError) => caughtError)
+
+    expect(error.constructor).toBe(TimeoutError)
+    expect(captured.signal.reason.constructor).toBe(TimeoutError)
+  })
+
+  it("clears the timeout timer on success so control.signal never aborts", async () => {
+    let captured
+
+    await timeout({timeout: 30}, ({control}) => {
+      captured = control
+
+      return "done"
+    })
+
+    // Wait past the original deadline; a leaked timer would abort here.
+    await wait(60)
+
+    expect(captured.signal.aborted).toBe(false)
+  })
+
+  it("removes the external abort listener on success", async () => {
+    const controller = new AbortController()
+    let captured
+
+    await timeout({timeout: 300, signal: controller.signal}, ({control}) => {
+      captured = control
+
+      return "done"
+    })
+
+    // The listener must be gone, so aborting the external signal must not abort control.signal.
+    controller.abort(new Error("late"))
+
+    expect(captured.signal.aborted).toBe(false)
   })
 
   it("bails out of a loop that checks check() on every iteration when the timeout fires", async () => {

@@ -26,13 +26,15 @@ export class TimeoutControl {
     this._errorMessage = errorMessage
   }
 
-  /** Throws TimeoutError if the timeout has fired. Call this between async operations to bail early. */
+  /** Throws if the timeout fired or the composed signal aborted. Call this between async operations to bail early. */
   check() {
-    if (Date.now() >= this._deadline) {
-      // If the signal already aborted, throw its reason. Otherwise the deadline passed without the
-      // event loop processing the timer (synchronous work), so throw our own TimeoutError.
-      this.signal.throwIfAborted()
+    // Honor any abort of the composed signal first — an external signal may abort it well before the
+    // deadline, and cancellation must win immediately rather than waiting for the deadline.
+    this.signal.throwIfAborted()
 
+    if (Date.now() >= this._deadline) {
+      // The deadline passed but the timer callback hasn't aborted the signal yet (synchronous work
+      // starved the event loop), so surface our own TimeoutError.
       throw new TimeoutError(this._errorMessage)
     }
   }
@@ -58,6 +60,7 @@ export class TimeoutControl {
  * @typedef {object} TimeoutArgs
  * @property {number} [timeout] - The timeout in milliseconds (default: 5000).
  * @property {string} [errorMessage] - The error message when timing out.
+ * @property {AbortSignal} [signal] - External AbortSignal composed with the deadline. When it aborts, the run rejects with `signal.reason` and `control.signal` aborts with that same reason.
  */
 
 /**
@@ -100,7 +103,7 @@ export default async function timeout(arg1, arg2) {
   if (callback == undefined) throw new Error("Somehow callback is undefined")
   if (args == null || typeof args !== "object") throw new Error("Somehow args isn't an object")
 
-  const {timeout: timeoutNumber = 5000, errorMessage = "Timeout while trying", ...restArgs} = args
+  const {timeout: timeoutNumber = 5000, errorMessage = "Timeout while trying", signal, ...restArgs} = args
   const restArgsKeys = Object.keys(restArgs)
 
   if (restArgsKeys.length > 0) throw new Error(`Unknown arguments given to timeout: ${restArgsKeys.join(", ")}`)
@@ -108,7 +111,17 @@ export default async function timeout(arg1, arg2) {
   const controller = new AbortController()
   const control = new TimeoutControl(controller.signal, Date.now() + timeoutNumber, errorMessage)
 
+  // If the external signal already aborted, cancel before starting the callback or timer.
+  if (signal?.aborted) {
+    controller.abort(signal.reason)
+
+    throw signal.reason
+  }
+
   let timeoutId
+  /** @type {(() => void) | undefined} */
+  let onExternalAbort
+
   const timeoutPromise = new Promise((_, reject) => {
     timeoutId = setTimeout(() => {
       const timeoutError = new TimeoutError(errorMessage)
@@ -116,11 +129,21 @@ export default async function timeout(arg1, arg2) {
       controller.abort(timeoutError)
       reject(timeoutError)
     }, timeoutNumber)
+
+    if (signal) {
+      onExternalAbort = () => {
+        controller.abort(signal.reason)
+        reject(signal.reason)
+      }
+
+      signal.addEventListener("abort", onExternalAbort)
+    }
   })
 
   try {
     return await Promise.race([Promise.resolve().then(() => callback({control})), timeoutPromise])
   } finally {
     clearTimeout(timeoutId)
+    if (signal && onExternalAbort) signal.removeEventListener("abort", onExternalAbort)
   }
 }
