@@ -35,5 +35,10 @@ export default defineConfig([
   },
   jsdoc({
     config: "flat/recommended"
-  })
+  }),
+  {
+    rules: {
+      "jsdoc/no-undefined-types": ["warn", {definedTypes: ["PromiseLike"]}]
+    }
+  }
 ])

@@ -2,6 +2,19 @@
 
 ## Usage
 
+## deferred
+
+Create a promise whose resolve and reject functions can be called externally. This is useful for deterministic synchronization between concurrent operations.
+
+```js
+import deferred from "awaitery/build/deferred.js"
+
+const ready = deferred()
+
+startWork().then(ready.resolve, ready.reject)
+await ready.promise
+```
+
 ## retry
 
 Retry a callback until it succeeds or you exhaust the configured tries (default 3); optionally wrap each attempt in a timeout and wait between failed attempts. Defaults to 3 tries with no timeout and no wait unless you pass options.
