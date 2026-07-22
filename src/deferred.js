@@ -5,7 +5,7 @@
  * @typedef {object} Deferred
  * @property {Promise<T>} promise - Promise controlled by the exposed resolver functions.
  * @property {(reason?: unknown) => void} reject - Rejects the promise.
- * @property {(value: T) => void} resolve - Resolves the promise.
+ * @property {(value: T | PromiseLike<T>) => void} resolve - Resolves the promise or adopts another promise's state.
  */
 
 /**

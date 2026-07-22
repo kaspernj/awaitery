@@ -30,7 +30,7 @@
     "prepare": "npm run build",
     "prepublishOnly": "npm run build",
     "test": "node jasmine.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --project tsconfig.type-tests.json",
     "watch": "tsc -w",
     "release:patch": "release-patch",
     "eslint": "eslint"

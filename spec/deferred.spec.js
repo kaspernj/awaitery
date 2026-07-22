@@ -12,6 +12,15 @@ describe("deferred", () => {
     await expectAsync(result.promise).toBeResolvedTo("done")
   })
 
+  it("adopts the state of a provided promise", async () => {
+    /** @type {import("../src/deferred.js").Deferred<string>} */
+    const result = deferred()
+
+    result.resolve(Promise.resolve("done"))
+
+    await expectAsync(result.promise).toBeResolvedTo("done")
+  })
+
   it("resolves void synchronization gates without a value", async () => {
     const gate = deferred()
 
