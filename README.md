@@ -155,3 +155,32 @@ await waitFor({timeout: 2000, wait: 100, signal: controller.signal}, async ({con
   await fetch(url, {signal: control.signal})
 })
 ```
+
+## withTimeout
+
+Bound a promise with a deadline. Resolves with the promise's result if it settles first; otherwise rejects with a `TimeoutError` whose message is `Timed out: <label>`. The promise is never cancelled — it keeps running if it settles late, but its result no longer reaches the caller.
+
+```js
+import withTimeout from "awaitery/build/with-timeout.js"
+
+await withTimeout(gateway.start(), "gateway registration")
+await withTimeout(client.connect(), "client authentication", 10_000)
+await withTimeout(promise, "label", {timeout: 5000, errorMessage: "gave up"})
+
+const controller = new AbortController()
+await withTimeout(promise, "label", {timeout: 5000, signal: controller.signal}) // rejects with signal.reason when aborted
+```
+
+## waitUntil
+
+Poll a predicate until it returns a truthy value (first check is immediate, then every `poll` ms, default 10), or the deadline is reached. Resolves with the first truthy value, or rejects with a `TimeoutError` whose message is `Timed out: <label>`. A throwing predicate rethrows its error.
+
+```js
+import waitUntil from "awaitery/build/wait-until.js"
+
+await waitUntil(() => client.status().virtualStreams === 0, "stream retired")
+await waitUntil(probe, "peers ready", {timeout: 10_000, poll: 25})
+
+const controller = new AbortController()
+await waitUntil(probe, "peers ready", {timeout: 10_000, signal: controller.signal}) // rejects with signal.reason when aborted
+```
