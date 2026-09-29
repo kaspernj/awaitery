@@ -255,3 +255,85 @@ describe("timeout", () => {
     expect(iterations).toBeLessThan(100)
   })
 })
+
+// Helper call chain mirroring the production pattern: an outer async caller awaits
+// an intermediate async function that is the direct timeout() call site (e.g.
+// runner-service -> eligibility-service -> timeout).
+
+/**
+ * Outer async caller that awaits the direct timeout() call site and returns the
+ * thrown error, mirroring an async parent frame above the direct call site.
+ * @returns {Promise<Error>} The TimeoutError thrown by the direct call site.
+ */
+async function timeoutOuterCaller() {
+  try {
+    return await timeoutDirectCaller()
+  } catch (error) {
+    return error
+  }
+}
+
+/**
+ * Direct timeout() call site whose callback outlives the deadline, so the timer
+ * fires and the returned error is the fired TimeoutError.
+ * @returns {Promise<Error | "done">} The fired TimeoutError (callback always times out).
+ */
+async function timeoutDirectCaller() {
+  return await timeout({timeout: 30, errorMessage: "probe timed out"}, async () => {
+    await wait(60)
+  })
+}
+
+/**
+ * Drives control.check() to throw its own TimeoutError (event loop starved past
+ * the deadline) from an async caller chain.
+ * @returns {Promise<Error | "done">} The TimeoutError thrown by control.check().
+ */
+async function checkBusyWaitCaller() {
+  try {
+    return await timeout({timeout: 5, errorMessage: "check timed out"}, async ({control}) => {
+      // Starve the event loop past the deadline so check() throws its own TimeoutError
+      // rather than the timer callback aborting the signal first.
+      const spinUntil = Date.now() + 10
+
+      while (Date.now() < spinUntil) {
+        // Intentionally spin without yielding to the event loop.
+      }
+      control.check()
+
+      return "done"
+    })
+  } catch (error) {
+    return error
+  }
+}
+
+describe("timeout caller stack capture", () => {
+  it("carries the call site as .cause on the fired TimeoutError", async () => {
+    const error = await timeoutOuterCaller()
+
+    expect(error.constructor).toBe(TimeoutError)
+    expect(error.cause).toBeInstanceOf(Error)
+    expect(error.message).toBe("probe timed out")
+  })
+
+  it("recovers the direct caller frame and the awaited parent in the fired error's stack", async () => {
+    const error = await timeoutOuterCaller()
+
+    // The direct timeout() call site is a synchronous frame at capture time, so it
+    // must always be present.
+    expect(error.stack).toContain("timeoutDirectCaller")
+
+    // The awaited caller above the direct site is recovered via Node's async stack
+    // traces, which is exactly the context that used to be lost.
+    expect(error.stack).toContain("timeoutOuterCaller")
+  })
+
+  it("also carries the caller frames on the TimeoutError thrown by control.check()", async () => {
+    const error = await checkBusyWaitCaller()
+
+    expect(error.constructor).toBe(TimeoutError)
+    expect(error.cause).toBeInstanceOf(Error)
+    expect(error.stack).toContain("checkBusyWaitCaller")
+  })
+})
