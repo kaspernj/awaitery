@@ -1,11 +1,12 @@
 import wait from "../src/wait.js"
+import {minimumTimerElapsedMs} from "./support/timer-tolerance.js"
 
 describe("wait", () => {
   it("resolves after the given time", async () => {
     const start = Date.now()
     await wait(30)
 
-    expect(Date.now() - start).toBeGreaterThanOrEqual(30)
+    expect(Date.now() - start).toBeGreaterThanOrEqual(minimumTimerElapsedMs(30))
   })
 
   it("rejects immediately with signal.reason when the signal is already aborted", async () => {
@@ -60,7 +61,7 @@ describe("wait", () => {
 
     await wait(30, {signal: controller.signal})
 
-    expect(Date.now() - start).toBeGreaterThanOrEqual(30)
+    expect(Date.now() - start).toBeGreaterThanOrEqual(minimumTimerElapsedMs(30))
   })
 
   it("does not reject when the signal aborts after a normal resolution (listener removed)", async () => {

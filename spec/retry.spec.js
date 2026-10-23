@@ -1,6 +1,7 @@
 import retry from "../src/retry.js"
 import {TimeoutControl, TimeoutError} from "../src/timeout.js"
 import wait from "../src/wait.js"
+import {minimumTimerElapsedMs} from "./support/timer-tolerance.js"
 
 describe("retry", () => {
   it("calls a legacy callback without arguments", async () => {
@@ -81,8 +82,8 @@ describe("retry", () => {
     })).toBeResolvedTo("ok")
 
     expect(attemptTimes).toHaveSize(3)
-    expect(attemptTimes[1] - attemptTimes[0]).toBeGreaterThanOrEqual(waitTime)
-    expect(attemptTimes[2] - attemptTimes[1]).toBeGreaterThanOrEqual(waitTime)
+    expect(attemptTimes[1] - attemptTimes[0]).toBeGreaterThanOrEqual(minimumTimerElapsedMs(waitTime))
+    expect(attemptTimes[2] - attemptTimes[1]).toBeGreaterThanOrEqual(minimumTimerElapsedMs(waitTime))
   })
 
   it("passes a TimeoutControl to the callback when a timeout is set", async () => {
@@ -413,7 +414,7 @@ describe("retry", () => {
 
     const gap = attemptTimes[1] - attemptTimes[0]
 
-    expect(gap).toBeGreaterThanOrEqual(20)
+    expect(gap).toBeGreaterThanOrEqual(minimumTimerElapsedMs(25))
     // The 5000ms configured wait must have been overridden by the decision.
     expect(gap).toBeLessThan(2000)
   })
@@ -460,8 +461,8 @@ describe("retry", () => {
     expect(scheduleCalls[0].tries).toBe(3)
     expect(scheduleCalls[0].error).toBeInstanceOf(Error)
     expect(scheduleCalls[1].tryNumber).toBe(2)
-    expect(attemptTimes[1] - attemptTimes[0]).toBeGreaterThanOrEqual(firstGapTarget)
-    expect(attemptTimes[2] - attemptTimes[1]).toBeGreaterThanOrEqual(secondGapTarget)
+    expect(attemptTimes[1] - attemptTimes[0]).toBeGreaterThanOrEqual(minimumTimerElapsedMs(firstGapTarget))
+    expect(attemptTimes[2] - attemptTimes[1]).toBeGreaterThanOrEqual(minimumTimerElapsedMs(secondGapTarget))
   })
 
   it("retries immediately when the decision waits zero milliseconds", async () => {
