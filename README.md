@@ -64,6 +64,30 @@ await retry({tries: 5, wait: 1000, signal: controller.signal}, async ({signal}) 
 
 When cancelled, `retry()` rejects with `signal.reason`. Cancellation always wins: a non-cooperative callback (or `shouldRetry`) that resolves after the abort cannot override it. When `signal` is combined with `timeout`, the external signal is composed into the per-attempt `TimeoutControl` so the callback observes both the deadline and external cancellation through `control.signal`.
 
+#### Retrying specific error types
+
+`shouldRetry` may also return (or resolve to) a `{retry, wait}` decision, so the classification of an error and the delay it deserves live together in the caller instead of in a bespoke retry loop per caller. `wait` accepts a fixed number of milliseconds or a schedule callback receiving the failed attempt's `error`, `tryNumber` and `tries`, and `onRetry` observes every accepted retry with its resolved delay right before it:
+
+```js
+await retry({
+  tries: 3,
+  wait: ({error, tryNumber}) => (error instanceof InterruptedConnectionError ? tryNumber * 100 : 5000),
+  shouldRetry: ({error}) => {
+    if (error instanceof InvalidCredentialsError) return {retry: false} // rethrow now, no delay
+    if (error instanceof HostUnreachableError) return {retry: true, wait: 15000} // this error type owns its delay
+
+    return true // fall through to the configured wait or wait schedule
+  },
+  onRetry: ({error, tryNumber, tries, wait}) => {
+    console.log(`${error.message} - retrying in ${wait}ms (${tryNumber}/${tries})`)
+  }
+}, async () => {
+  await connect()
+})
+```
+
+A decision's `wait` overrides both the configured `wait` and the schedule for that retry. `onRetry` errors are not swallowed (they reject the run), and a cancellation observed inside `shouldRetry`, a wait schedule or `onRetry` still wins over its result.
+
 ## timeout
 
 Run a callback with a hard timeout; if the timer wins, a `TimeoutError` is thrown, otherwise the callback’s return value is yielded. Defaults to a 5000ms timeout when called without options.

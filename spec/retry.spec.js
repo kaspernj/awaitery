@@ -393,4 +393,194 @@ describe("retry", () => {
     expect(captured.signal.reason).toBe(reason)
     expect(attempts).toBe(1)
   })
+
+  it("lets shouldRetry return a decision with an explicit wait for that error", async () => {
+    /** @type {number[]} */
+    const attemptTimes = []
+
+    class TransientNetworkError extends Error {}
+
+    await expectAsync(retry({
+      tries: 3,
+      wait: 5000,
+      shouldRetry: ({error}) => (error instanceof TransientNetworkError ? {retry: true, wait: 25} : false)
+    }, async () => {
+      attemptTimes.push(performance.now())
+      if (attemptTimes.length < 2) throw new TransientNetworkError("transient")
+
+      return "ok"
+    })).toBeResolvedTo("ok")
+
+    const gap = attemptTimes[1] - attemptTimes[0]
+
+    expect(gap).toBeGreaterThanOrEqual(20)
+    // The 5000ms configured wait must have been overridden by the decision.
+    expect(gap).toBeLessThan(2000)
+  })
+
+  it("rethrows without retrying when the decision refuses the retry", async () => {
+    let attempts = 0
+
+    await expectAsync(retry({
+      tries: 3,
+      wait: 5,
+      shouldRetry: () => ({retry: false})
+    }, async () => {
+      attempts += 1
+      throw new Error("permanent")
+    })).toBeRejectedWithError("permanent")
+
+    expect(attempts).toBe(1)
+  })
+
+  it("computes the retry wait from a wait schedule callback", async () => {
+    /** @type {Array<{error: unknown, tryNumber: number, tries: number}>} */
+    const scheduleCalls = []
+    /** @type {number[]} */
+    const attemptTimes = []
+    const firstGapTarget = 10
+    const secondGapTarget = 40
+
+    await expectAsync(retry({
+      tries: 3,
+      wait: (args) => {
+        scheduleCalls.push(args)
+
+        return args.tryNumber === 1 ? firstGapTarget : secondGapTarget
+      }
+    }, async () => {
+      attemptTimes.push(performance.now())
+      if (attemptTimes.length < 3) throw new Error(`fail ${attemptTimes.length}`)
+
+      return "ok"
+    })).toBeResolvedTo("ok")
+
+    expect(scheduleCalls).toHaveSize(2)
+    expect(scheduleCalls[0].tryNumber).toBe(1)
+    expect(scheduleCalls[0].tries).toBe(3)
+    expect(scheduleCalls[0].error).toBeInstanceOf(Error)
+    expect(scheduleCalls[1].tryNumber).toBe(2)
+    expect(attemptTimes[1] - attemptTimes[0]).toBeGreaterThanOrEqual(firstGapTarget)
+    expect(attemptTimes[2] - attemptTimes[1]).toBeGreaterThanOrEqual(secondGapTarget)
+  })
+
+  it("retries immediately when the decision waits zero milliseconds", async () => {
+    let attempts = 0
+    const start = Date.now()
+
+    await expectAsync(retry({
+      tries: 2,
+      wait: 5000,
+      shouldRetry: () => ({retry: true, wait: 0})
+    }, async () => {
+      attempts += 1
+      if (attempts < 2) throw new Error("again")
+
+      return "ok"
+    })).toBeResolvedTo("ok")
+
+    expect(Date.now() - start).toBeLessThan(2000)
+  })
+
+  it("observes every retry with its resolved wait", async () => {
+    /** @type {Array<{tryNumber: number, tries: number, wait: number}>} */
+    const retries = []
+    let attempts = 0
+
+    await expectAsync(retry({
+      tries: 3,
+      wait: 5,
+      onRetry: ({tryNumber, tries, wait: retryWait}) => {
+        retries.push({tryNumber, tries, wait: retryWait})
+      }
+    }, async () => {
+      attempts += 1
+      if (attempts < 3) throw new Error(`fail ${attempts}`)
+
+      return "ok"
+    })).toBeResolvedTo("ok")
+
+    expect(retries).toEqual([{tryNumber: 1, tries: 3, wait: 5}, {tryNumber: 2, tries: 3, wait: 5}])
+  })
+
+  it("observes the decision wait instead of the configured wait", async () => {
+    /** @type {number[]} */
+    const observedWaits = []
+    let attempts = 0
+
+    await retry({
+      tries: 2,
+      wait: 5000,
+      shouldRetry: () => ({retry: true, wait: 15}),
+      onRetry: ({wait: retryWait}) => {
+        observedWaits.push(retryWait)
+      }
+    }, async () => {
+      attempts += 1
+      if (attempts < 2) throw new Error("again")
+
+      return "ok"
+    })
+
+    expect(observedWaits).toEqual([15])
+  })
+
+  it("does not observe a refused retry", async () => {
+    let observed = 0
+
+    await expectAsync(retry({
+      tries: 3,
+      wait: 5,
+      shouldRetry: () => false,
+      onRetry: () => {
+        observed += 1
+      }
+    }, async () => {
+      throw new Error("permanent")
+    })).toBeRejectedWithError("permanent")
+
+    expect(observed).toBe(0)
+  })
+
+  it("propagates an error thrown by onRetry without another attempt", async () => {
+    let attempts = 0
+
+    await expectAsync(retry({
+      tries: 3,
+      wait: 5,
+      onRetry: () => {
+        throw new Error("observer exploded")
+      }
+    }, async () => {
+      attempts += 1
+      throw new Error("original")
+    })).toBeRejectedWithError("observer exploded")
+
+    expect(attempts).toBe(1)
+  })
+
+  it("lets cancellation during an async onRetry win over the retry", async () => {
+    const controller = new AbortController()
+    const reason = new Error("cancelled")
+    let attempts = 0
+
+    const promise = retry({
+      tries: 3,
+      wait: 1000,
+      signal: controller.signal,
+      onRetry: async ({signal}) => {
+        await new Promise((resolve) => signal?.addEventListener("abort", resolve, {once: true}))
+      }
+    }, async () => {
+      attempts += 1
+      throw new Error("original")
+    })
+
+    setTimeout(() => controller.abort(reason), 20)
+
+    const caught = await promise.catch((error) => error)
+
+    expect(caught).toBe(reason)
+    expect(attempts).toBe(1)
+  })
 })
