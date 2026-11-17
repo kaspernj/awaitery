@@ -1,7 +1,47 @@
 before_script:
   - npm install
-script:
-  - npm run lint
-  - npm run typecheck
-  - npm run build
-  - npm test
+builds:
+  lint:
+    paths:
+      - src/**
+      - spec/**
+      - type-tests/**
+      - eslint.config.js
+      - package.json
+      - package-lock.json
+      - tsconfig.json
+      - tsconfig.type-tests.json
+      - peak_flow.yml
+    script:
+      - npm run lint
+  typecheck:
+    paths:
+      - src/**
+      - type-tests/**
+      - package.json
+      - package-lock.json
+      - tsconfig.json
+      - tsconfig.type-tests.json
+      - peak_flow.yml
+    script:
+      - npm run typecheck
+  build:
+    paths:
+      - src/**
+      - type-tests/**
+      - package.json
+      - package-lock.json
+      - tsconfig.json
+      - tsconfig.type-tests.json
+      - peak_flow.yml
+    script:
+      - npm run build
+  test:
+    paths:
+      - src/**
+      - spec/**
+      - package.json
+      - package-lock.json
+      - peak_flow.yml
+    script:
+      - npm test
