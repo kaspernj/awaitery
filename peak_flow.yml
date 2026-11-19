@@ -1,7 +1,7 @@
-before_script:
-  - npm install
 builds:
   lint:
+    dependency_roots:
+      - path: .
     paths:
       - src/**
       - spec/**
@@ -15,6 +15,8 @@ builds:
     script:
       - npm run lint
   typecheck:
+    dependency_roots:
+      - path: .
     paths:
       - src/**
       - type-tests/**
@@ -26,6 +28,8 @@ builds:
     script:
       - npm run typecheck
   build:
+    dependency_roots:
+      - path: .
     paths:
       - src/**
       - type-tests/**
@@ -37,9 +41,12 @@ builds:
     script:
       - npm run build
   test:
+    dependency_roots:
+      - path: .
     paths:
       - src/**
       - spec/**
+      - jasmine.mjs
       - package.json
       - package-lock.json
       - peak_flow.yml
