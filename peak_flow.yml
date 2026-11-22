@@ -1,7 +1,54 @@
-before_script:
-  - npm install
-script:
-  - npm run lint
-  - npm run typecheck
-  - npm run build
-  - npm test
+builds:
+  lint:
+    dependency_roots:
+      - path: .
+    paths:
+      - src/**
+      - spec/**
+      - type-tests/**
+      - eslint.config.js
+      - package.json
+      - package-lock.json
+      - tsconfig.json
+      - tsconfig.type-tests.json
+      - peak_flow.yml
+    script:
+      - npm run lint
+  typecheck:
+    dependency_roots:
+      - path: .
+    paths:
+      - src/**
+      - type-tests/**
+      - package.json
+      - package-lock.json
+      - tsconfig.json
+      - tsconfig.type-tests.json
+      - peak_flow.yml
+    script:
+      - npm run typecheck
+  build:
+    dependency_roots:
+      - path: .
+    paths:
+      - src/**
+      - type-tests/**
+      - package.json
+      - package-lock.json
+      - tsconfig.json
+      - tsconfig.type-tests.json
+      - peak_flow.yml
+    script:
+      - npm run build
+  test:
+    dependency_roots:
+      - path: .
+    paths:
+      - src/**
+      - spec/**
+      - jasmine.mjs
+      - package.json
+      - package-lock.json
+      - peak_flow.yml
+    script:
+      - npm test
